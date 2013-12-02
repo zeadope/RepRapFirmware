@@ -213,15 +213,20 @@ void Move::Spin()
 
   if(gCodes->ReadMove(nextMove, checkEndStopsOnNextMove))
   {
+//	Serial2.println("MOVE:SPIN() move to do"); //FIXME DEBUG
 	Transform(nextMove);
 
     currentFeedrate = nextMove[DRIVES]; // Might be G1 with just an F field
-
-    for(int8_t drive = 0; drive < DRIVES; drive++)
+//    Serial2.print("nextMove:nextMachineEndPoints, ");//FIXME DEBUG
+    for(int8_t drive = 0; drive < DRIVES; drive++){
     	nextMachineEndPoints[drive] = LookAhead::EndPointToMachine(drive, nextMove[drive]);
+//    	Serial2.print(nextMove[drive]); Serial2.print(":");//FIXME DEBUG
+//    	Serial2.print(nextMachineEndPoints[drive]);Serial2.print(", ");//FIXME DEBUG
+    }
+//    Serial2.println("READ");//FIXME DEBUG
 
     int8_t movementType = GetMovementType(lastMove->MachineEndPoints(), nextMachineEndPoints);
-
+//    Serial2.print("MOVE:SPIN() movement type: ");Serial2.println(movementType);//FIXME DEBUG
     // Throw it away if there's no real movement.
     
     if(movementType == noMove)
@@ -239,7 +244,7 @@ void Move::Spin()
     if(movementType & xyMove)
       nextMove[DRIVES] = fmax(nextMove[DRIVES], platform->InstantDv(X_AXIS));
     else if(movementType & eMove)
-      nextMove[DRIVES] = fmax(nextMove[DRIVES], platform->InstantDv(AXES));
+      nextMove[DRIVES] = fmax(nextMove[DRIVES], platform->InstantDv(AXES+gCodes->GetSelectedHead())); //FIXME, TEST: changed to use the current extruder
     else
       nextMove[DRIVES] = fmax(nextMove[DRIVES], platform->InstantDv(Z_AXIS));
       
@@ -248,10 +253,10 @@ void Move::Spin()
     if(movementType & xyMove)
       nextMove[DRIVES] = fmin(nextMove[DRIVES], platform->MaxFeedrate(X_AXIS));  // Assumes X and Y are equal.  FIXME?
     else if(movementType & eMove)
-      nextMove[DRIVES] = fmin(nextMove[DRIVES], platform->MaxFeedrate(AXES)); // Picks up the value for the first extruder.  FIXME?
+      nextMove[DRIVES] = fmin(nextMove[DRIVES], platform->MaxFeedrate(AXES+gCodes->GetSelectedHead()));  //FIXME, TEST: changed to use the current extruder
     else // Must be z
       nextMove[DRIVES] = fmin(nextMove[DRIVES], platform->MaxFeedrate(Z_AXIS));
-    
+
     if(!LookAheadRingAdd(nextMachineEndPoints, nextMove[DRIVES], 0.0, checkEndStopsOnNextMove, movementType))
       platform->Message(HOST_MESSAGE, "Can't add to non-full look ahead ring!\n"); // Should never happen...
   }
@@ -316,7 +321,8 @@ bool Move::GetCurrentState(float m[])
     if(i < AXES)
       m[i] = lastMove->MachineToEndPoint(i);
     else
-      m[i] = 0.0;
+      m[i] = 0.00; //FIXME This resets extruders to 0.0, even the inactive ones (is this behaviour desired?)
+      //m[i] = lastMove->MachineToEndPoint(i); //FIXME TEST alternative that does not reset extruders to 0
   }
   if(currentFeedrate >= 0.0)
     m[DRIVES] = currentFeedrate;
@@ -516,7 +522,7 @@ void Move::DoLookAhead()
           else if (mt & zMove)
             c = platform->InstantDv(Z_AXIS);
           else
-            c = platform->InstantDv(AXES); // value for first extruder FIXME??
+            c = platform->InstantDv(AXES+gCodes->GetSelectedHead()); // value for selected extruder FIXME TEST and check if this logic is desired
         }
         n1->SetV(c);
         n1->SetProcessed(vCosineSet);
@@ -567,7 +573,7 @@ void Move::Interrupt()
   dda = NULL;
 }
 
-
+// creates a new lookahead object adds it to the lookahead ring, returns false if its full
 bool Move::LookAheadRingAdd(long ep[], float feedRate, float vv, bool ce, int8_t mt)
 {
     if(LookAheadRingFull())
@@ -950,7 +956,7 @@ MovementProfile DDA::Init(LookAhead* lookAhead, float& u, float& v)
   
   // Sanity check
   
-  if(velocity <= 0.0)
+  if(velocity <= 0.0) //FIXME from a standing start would the initial velocity not be 0?
   {
     velocity = 1.0;
 //    if(reprap.Debug())
@@ -1130,11 +1136,13 @@ float LookAhead::Cosine()
   return cosine;
 }
 
+//Returns units (mm) from steps for a particular drive
 float LookAhead::MachineToEndPoint(int8_t drive, long coord)
 {
 	return ((float)coord)/reprap.GetPlatform()->DriveStepsPerUnit(drive);
 }
 
+//Returns steps from units (mm) for a particular drive
 long LookAhead::EndPointToMachine(int8_t drive, float coord)
 {
 	return  (long)roundf(coord*reprap.GetPlatform()->DriveStepsPerUnit(drive));

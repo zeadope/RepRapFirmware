@@ -64,68 +64,79 @@ Licence: GPL
 
 // The physical capabilities of the machine
 
-#define DRIVES 4  // The number of drives in the machine, including X, Y, and Z plus extruder drives
+#define DRIVES 5  // The number of drives in the machine, including X, Y, and Z plus extruder drives
 #define AXES 3    // The number of movement axes in the machine, usually just X, Y and Z. <= DRIVES
-#define HEATERS 2 // The number of heaters in the machine; 0 is the heated bed even if there isn't one.
+#define HEATERS 3 // The number of heaters in the machine; 0 is the heated bed even if there isn't one.
 
 // The numbers of entries in each array must correspond with the values of DRIVES,
 // AXES, or HEATERS.  Set values to -1 to flag unavailability.
 
 // DRIVES
 
-#define STEP_PINS {14, 25, 5, X2}
-#define DIRECTION_PINS {15, 26, 4, X3}
+#define STEP_PINS {14, 25, 5, X2, 41}
+#define DIRECTION_PINS {15, 26, 4, X3, 35}
 #define FORWARDS true     // What to send to go... 
 #define BACKWARDS false    // ...in each direction
-#define ENABLE_PINS {29, 27, X1, X0}
+#define ENABLE_PINS {29, 27, X1, X0, 37}
 #define ENABLE false      // What to send to enable... 
 #define DISABLE true     // ...and disable a drive
-#define DISABLE_DRIVES {false, false, true, false} // Set true to disable a drive when it becomes idle
-#define LOW_STOP_PINS {11, -1, 60, 31}
-#define HIGH_STOP_PINS {-1, 28, -1, -1}
+#define DISABLE_DRIVES {false, false, true, false, false} // Set true to disable a drive when it becomes idle
+#define LOW_STOP_PINS {-1, -1, -1, 31, 24} //E0 and E1 Stop not currently used
+#define HIGH_STOP_PINS {11, 28, 60, -1, -1} //E0 and E1 Stop not currently used
+#define HOME_DIRECTION {1, 1, 1, -1, -1} // 1 for Max/High, -1 for Min/ Low
 #define ENDSTOP_HIT 1 // when a stop == this it is hit
-#define POT_WIPES {0, 1, 2, 3} // Indices for motor current digipots (if any)
+// Indices for motor current digipots (if any)
+//  first 4 are for digipot 1,(on duet)
+//  second 4 for digipot 2(on expansion board)
+//  Full order is {1, 3, 2, 0, 1, 3, 2, 0}, only include as many as you have DRIVES defined
+#define POT_WIPES {1, 3, 2, 0, 1}
 #define SENSE_RESISTOR 0.1   // Stepper motor current sense resistor
 #define MAX_STEPPER_DIGIPOT_VOLTAGE ( 3.3*2.5/(2.7+2.5) ) // Stepper motor current reference voltage
+#define Z_PROBE_ENABLE false //FIXME use state of Zprobe pin to enable/disable Z probing
 #define Z_PROBE_AD_VALUE 400
 #define Z_PROBE_STOP_HEIGHT 0.7 // mm
-#define Z_PROBE_PIN 0 // Analogue pin number
-#define MAX_FEEDRATES {50.0, 50.0, 3.0, 16.0}    // mm/sec
-#define ACCELERATIONS {800.0, 800.0, 10.0, 250.0}    // mm/sec^2
-#define DRIVE_STEPS_PER_UNIT {91.4286, 91.4286, 4000.0, 420.0}
-#define INSTANT_DVS {15.0, 15.0, 0.2, 2.0}    // (mm/sec)
+#define Z_PROBE_PIN -1 // Analogue pin number (0) //FIXME confirm A6 or A0
+#define MAX_FEEDRATES {150.0, 150.0, 3.0, 20.0, 20.0}    // mm/sec
+#define ACCELERATIONS {800.0, 800.0, 20.0, 250.0, 250.0}    // mm/sec^2
+#define DRIVE_STEPS_PER_UNIT {80, 80, 4000.0, 655.0, 655.0}
+#define INSTANT_DVS {15.0, 15.0, 0.2, 2.0, 2.0}    // (mm/sec)
 
 // AXES
 
-#define AXIS_LENGTHS {210, 195, 140} // mm
-#define HOME_FEEDRATES {50.0, 50.0, 1.0}  // mm/sec
+#define AXIS_LENGTHS {183, 199, 198.3} // mm
+#define HOME_FEEDRATES {50.0, 50.0, 3.0}  // mm/sec
 #define HEAD_OFFSETS {0.0, 0.0, 0.0}
 
 #define X_AXIS 0  // The index of the X axis
 #define Y_AXIS 1  // The index of the Y axis
 #define Z_AXIS 2  // The index of the Z axis
 
+#define E0_DRIVE 3 //the index of the first Extruder drive
+#define E1_DRIVE 4 //the index of the second Extruder drive
+//#define E2_DRIVE 5 //the index of the third Extruder drive
+//#define E3_DRIVE 6 //the index of the fourth Extruder drive
+//#define E4_DRIVE 7 //the index of the fifth Extruder drive
 
 // HEATERS - The bed is assumed to be the first
 
-#define TEMP_SENSE_PINS {5, 4}   // Analogue pin numbers
-#define HEAT_ON_PINS {6, X5}
-#define THERMISTOR_BETAS {3480.0, 3960.0} // Bed thermistor: RS 484-0149; EPCOS B57550G103J; Extruder thermistor: RS 198-961
-#define THERMISTOR_SERIES_RS {1000, 1000} // Ohms in series with the thermistors
-#define THERMISTOR_25_RS {10000.0, 100000.0} // Thermistor ohms at 25 C = 298.15 K
-#define USE_PID {false, true} // PID or bang-bang for this heater?
-#define PID_KIS {-1, 2.2} // PID constants...
-#define PID_KDS {-1, 80}
-#define PID_KPS {-1, 12}
-#define FULL_PID_BAND {-1, 150.0}
-#define PID_MIN {-1, 0.0}
-#define PID_MAX {-1, 125.0}
-#define D_MIX {-1, 0.95}
+#define TEMP_SENSE_PINS {5, 4, 0}   // Analogue pin numbers
+#define HEAT_ON_PINS {6, X5, X7}  //pin D38 is PWM capable but not an Arduino PWM pin - //FIXME TEST if E1 PWM works as D38
+#define THERMISTOR_BETAS {4036, 3960.0, 3960.0} // Bed thermistor: B57861S104F40; Extruder thermistor: RS 198-961
+#define THERMISTOR_SERIES_RS {1000, 1000, 1000} // Ohms in series with the thermistors
+#define THERMISTOR_25_RS {100000.0, 100000.0, 100000.0} // Thermistor ohms at 25 C = 298.15 K
+#define USE_PID {false, true, true} // PID or bang-bang for this heater?
+#define PID_KIS {-1, 2.2, 2.2} // PID constants...
+#define PID_KDS {-1, 80, 80}
+#define PID_KPS {-1, 12, 12}
+#define FULL_PID_BAND {-1, 150.0, 150.0}
+#define PID_MIN {-1, 0.0, 0.0}
+#define PID_MAX {-1, 125.0, 125.0}
+#define D_MIX {-1, 0.95, 0.95}
 #define TEMP_INTERVAL 0.122 // secs - check and control temperatures this often
-#define STANDBY_TEMPERATURES {ABS_ZERO, ABS_ZERO} // We specify one for the bed, though it's not needed
-#define ACTIVE_TEMPERATURES {ABS_ZERO, ABS_ZERO}
-#define COOLING_FAN_PIN 34
-#define HEAT_ON 0 // 0 for inverted heater (eg Duet v0.6) 1 for not (e.g. Duet v0.4)
+#define STANDBY_TEMPERATURES {ABS_ZERO, ABS_ZERO, ABS_ZERO} // We specify one for the bed, though it's not needed
+#define ACTIVE_TEMPERATURES {ABS_ZERO, ABS_ZERO, ABS_ZERO}
+#define COOLING_FAN_PIN X6 //pin D34 is PWM capable but not an Arduino PWM pin - use X6 instead
+#define HEAT_ON {1,1,0} // 0 for inverted heater (eg Duet v0.6) //FIXME TEST logic to use an array
 
 #define AD_RANGE 1023.0//16383 // The A->D converter that measures temperatures gives an int this big as its max value
 
@@ -463,6 +474,7 @@ class Platform
   float HomeFeedRate(int8_t axis);
   void SetHomeFeedRate(int8_t axis, float value);
   EndStopHit Stopped(int8_t drive);
+  int8_t HomeDirection(int8_t drive);
   float AxisLength(int8_t axis);
   void SetAxisLength(int8_t axis, float value);
   bool HighStopButNotLow(int8_t axis);
@@ -516,11 +528,15 @@ class Platform
   bool driveEnabled[DRIVES];
   int8_t lowStopPins[DRIVES];
   int8_t highStopPins[DRIVES];
+  int8_t homeDirection[DRIVES];
   float maxFeedrates[DRIVES];  
   float accelerations[DRIVES];
   float driveStepsPerUnit[DRIVES];
   float instantDvs[DRIVES];
-  MCP4461 mcp;
+  MCP4461 mcpDuet;
+  MCP4461 mcpExpansion;
+
+
   int8_t potWipes[DRIVES];
   float senseResistor;
   float maxStepperDigipotVoltage;
@@ -550,6 +566,7 @@ class Platform
 
   int8_t tempSensePins[HEATERS];
   int8_t heatOnPins[HEATERS];
+  int8_t heatOn[HEATERS];
   float thermistorBetas[HEATERS];
   float thermistorSeriesRs[HEATERS];
   float thermistorInfRs[HEATERS];
@@ -715,7 +732,7 @@ inline void Platform::Disable(byte drive)
 {
 	if(enablePins[drive] < 0)
 		  return;
-	if(drive >= Z_AXIS)
+	if(drive == Z_AXIS || drive==E0_DRIVE) //ENABLE_PINS {29, 27, X1, X0, 37}
 		digitalWriteNonDue(enablePins[drive], DISABLE);
 	else
 		digitalWrite(enablePins[drive], DISABLE);
@@ -728,13 +745,13 @@ inline void Platform::Step(byte drive)
 		return;
 	if(!driveEnabled[drive] && enablePins[drive] >= 0)
 	{
-		if(drive >= Z_AXIS)
+		if(drive == Z_AXIS || drive==E0_DRIVE) //ENABLE_PINS {29, 27, X1, X0, 37}
 			digitalWriteNonDue(enablePins[drive], ENABLE);
 		else
 			digitalWrite(enablePins[drive], ENABLE);
 		driveEnabled[drive] = true;
 	}
-	if(drive == AXES)
+	if(drive == E0_DRIVE)//STEP_PINS {14, 25, 5, X2, 41}
 	{
 		digitalWriteNonDue(stepPins[drive], 0);
 		digitalWriteNonDue(stepPins[drive], 1);
@@ -754,8 +771,16 @@ inline void Platform::SetMotorCurrent(byte drive, float current)
 //	snprintf(scratchString, STRING_LENGTH, "%d", pot);
 //	Message(HOST_MESSAGE, scratchString);
 //	Message(HOST_MESSAGE, "\n");
-	mcp.setNonVolatileWiper(potWipes[drive], pot);
-	mcp.setVolatileWiper(potWipes[drive], pot);
+	if(drive < 4)
+	{
+		mcpDuet.setNonVolatileWiper(potWipes[drive], pot);
+		mcpDuet.setVolatileWiper(potWipes[drive], pot);
+	}
+	else
+	{
+		mcpExpansion.setNonVolatileWiper(potWipes[drive], pot);
+		mcpExpansion.setVolatileWiper(potWipes[drive], pot);
+	}
 }
 
 inline float Platform::HomeFeedRate(int8_t axis)
@@ -776,6 +801,11 @@ inline float Platform::AxisLength(int8_t axis)
 inline void Platform::SetAxisLength(int8_t axis, float value)
 {
   axisLengths[axis] = value;
+}
+
+inline int8_t Platform::HomeDirection(int8_t drive)
+{
+  return homeDirection[drive];
 }
 
 inline float Platform::MaxFeedrate(int8_t drive)
@@ -885,7 +915,7 @@ inline void Platform::CoolingFan(float speed)
 {
 	if(coolingFanPin < 0)
 		return;
-	analogWrite(coolingFanPin, (uint8_t)(speed*255.0));
+	analogWriteNonDue(coolingFanPin, (uint8_t)(speed*255.0));
 }
 
 

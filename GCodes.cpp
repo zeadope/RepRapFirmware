@@ -71,7 +71,7 @@ void GCodes::Init()
   offSetSet = false;
   dwellWaiting = false;
   stackPointer = 0;
-  selectedHead = -1;
+  selectedHead = 0; //default to zero so parameter setting gcodes (eg M906) work for tools prior to tools being selected
   gFeedRate = platform->MaxFeedrate(Z_AXIS); // Typically the slowest
   zProbesSet = false;
   probeCount = 0;
@@ -274,10 +274,13 @@ bool GCodes::Pop()
 
 void GCodes::LoadMoveBufferFromGCode(GCodeBuffer *gb, bool doingG92)
 {
+//	Serial2.print("LoadMoveBufferFromGCode. axesRelative: ");Serial2.print(axesRelative);//FIXME DEBUG
+//	Serial2.print(" drivesRelative: ");Serial2.println(drivesRelative);//FIXME DEBUG
 	float absE;
 
 	for(uint8_t i = 0; i < DRIVES; i++)
 	{
+//		Serial2.print(" , i="); Serial2.print(i);//FIXME DEBUG
 	    if(i < AXES)
 	    {
 	      if(gb->Seen(gCodeLetters[i]))
@@ -285,23 +288,32 @@ void GCodes::LoadMoveBufferFromGCode(GCodeBuffer *gb, bool doingG92)
 	        if(!axesRelative || doingG92)
 	        	moveBuffer[i] = gb->GetFValue()*distanceScale;
 	        else
-	        	moveBuffer[i] += gb->GetFValue()*distanceScale;
+	          moveBuffer[i] += gb->GetFValue()*distanceScale;
+//			Serial2.print(" ,AXES mB: "); Serial2.print(moveBuffer[i]);//FIXME DEBUG
 	      }
 	    } else
 	    {
-	      if(gb->Seen(gCodeLetters[i]))
+	      if(gb->Seen('E')&& ((i-AXES) == selectedHead)) //Only affect the selected extruder FIXME update to work with multiple concurrent extruders
 	      {
 	        if(drivesRelative || doingG92)
-	          moveBuffer[i] = gb->GetFValue()*distanceScale;
+	        {
+	        	moveBuffer[i] = gb->GetFValue()*distanceScale; //Absolute
+	        	if(doingG92)
+	        		lastPos[i - AXES] = moveBuffer[i]; //FIXME test if this causes other issues
+	        }
 	        else
 	        {
-	          absE = gb->GetFValue()*distanceScale;
-	          moveBuffer[i] = absE - lastPos[i - AXES];
-	          lastPos[i - AXES] = absE;
+	        	absE = gb->GetFValue()*distanceScale;
+	        	moveBuffer[i] = absE - lastPos[i - AXES];
+	        	lastPos[i - AXES] = absE;
+//	        	Serial2.print(" ,lastPos: "); Serial2.print(lastPos[i - AXES]);//FIXME DEBUG
 	        }
+//			Serial2.print(" ,DRIVES mB: "); Serial2.print(moveBuffer[i]);//FIXME DEBUG
 	      }
 	    }
+
 	}
+//	Serial2.println(" DONE");//FIXME DEBUG
 
 	// Deal with feedrate
 
@@ -339,8 +351,9 @@ bool GCodes::SetUpMove(GCodeBuffer *gb)
 
 bool GCodes::ReadMove(float m[], bool& ce)
 {
+
     if(!moveAvailable)
-      return false; 
+      return false;
     for(int8_t i = 0; i <= DRIVES; i++) // 1 more for feedrate
       m[i] = moveBuffer[i];
     ce = checkEndStops;
@@ -350,9 +363,9 @@ bool GCodes::ReadMove(float m[], bool& ce)
 }
 
 // To execute any move, call this until it returns true.
-// moveToDo[] entries corresponding with false entries in action[] will
+// moveToDo[] entries corresponding with false entries in activeDrive[] will
 // be ignored.  Recall that moveToDo[DRIVES] should contain the feedrate
-// you want (if action[DRIVES] is true).
+// you want (if activeDrive[DRIVES] is true).
 
 bool GCodes::DoCannedCycleMove(bool ce)
 {
@@ -480,13 +493,13 @@ bool GCodes::DoHome()
 				}
 			}else
 			{
-				moveToDo[X_AXIS] = 2.0*platform->AxisLength(X_AXIS);
+				moveToDo[X_AXIS] = platform->HomeDirection(X_AXIS)*2.0*platform->AxisLength(X_AXIS);
 				if(DoCannedCycleMove(true))
 					homeAxisFinalMove = true;
 			}
 		} else
 		{
-			moveToDo[X_AXIS] = -2.0*platform->AxisLength(X_AXIS);
+			moveToDo[X_AXIS] = platform->HomeDirection(X_AXIS)*2.0*platform->AxisLength(X_AXIS);
 			if(DoCannedCycleMove(true))
 			{
 				homeX = false;
@@ -514,13 +527,13 @@ bool GCodes::DoHome()
 				}
 			}else
 			{
-				moveToDo[Y_AXIS] = 2.0*platform->AxisLength(Y_AXIS);
+				moveToDo[Y_AXIS] = platform->HomeDirection(Y_AXIS)*2.0*platform->AxisLength(Y_AXIS);
 				if(DoCannedCycleMove(true))
 					homeAxisFinalMove = true;
 			}
 		} else
 		{
-			moveToDo[Y_AXIS] = -2.0*platform->AxisLength(Y_AXIS);
+			moveToDo[Y_AXIS] = platform->HomeDirection(Y_AXIS)*2.0*platform->AxisLength(Y_AXIS);
 			if(DoCannedCycleMove(true))
 			{
 				homeY = false;
@@ -546,7 +559,7 @@ bool GCodes::DoHome()
 			}
 		}else
 		{
-			moveToDo[Z_AXIS] = -2.0*platform->AxisLength(Z_AXIS);
+			moveToDo[Z_AXIS] = platform->HomeDirection(Z_AXIS)*2.0*platform->AxisLength(Z_AXIS);
 			if(DoCannedCycleMove(true))
 				homeAxisFinalMove = true;
 		}
@@ -742,14 +755,19 @@ bool GCodes::SetPrintZProbe(GCodeBuffer* gb, char* reply)
 // are updated at the end of each movement, so this won't tell you
 // where you are mid-movement.
 
-// FIXME - needs to deal with multiple extruders
 
 char* GCodes::GetCurrentCoordinates()
 {
 	float liveCoordinates[DRIVES+1];
 	reprap.GetMove()->LiveCoordinates(liveCoordinates);
 
-	snprintf(scratchString, STRING_LENGTH, "X:%f Y:%f Z:%f E:%f", liveCoordinates[X_AXIS], liveCoordinates[Y_AXIS], liveCoordinates[Z_AXIS], liveCoordinates[AXES]);
+	snprintf(scratchString, STRING_LENGTH, "X:%f Y:%f Z:%f ", liveCoordinates[X_AXIS], liveCoordinates[Y_AXIS], liveCoordinates[Z_AXIS]);
+	char eString[STRING_LENGTH];
+	for(int i = AXES; i< DRIVES; i++)
+	{
+		snprintf(eString,STRING_LENGTH,"E%d:%f ",i-AXES,liveCoordinates[i]);
+		strncat(scratchString,eString,STRING_LENGTH);
+	}
 	return scratchString;
 }
 
@@ -948,6 +966,7 @@ bool GCodes::SetOffsets(GCodeBuffer *gb)
     if(gb->Seen('S'))
       reprap.GetHeat()->SetActiveTemperature(head, gb->GetFValue());
     // FIXME - do X, Y and Z
+	platform->Message(HOST_MESSAGE, "Not Yet fully implemented: Use head offset in slicing software");
   }
   return true;  
 }
@@ -1253,6 +1272,10 @@ bool GCodes::ActOnGcode(GCodeBuffer *gb)
     	fileBeingPrinted = NULL;
     	break;
 
+    case 27: //report SD print Status
+    	platform->Message(HOST_MESSAGE, "M27: not yet implemented\n");
+    	break;
+
     case 28: // Write to file
     	str = gb->GetUnprecedentedString();
     	OpenFileToWrite(platform->GetGCodeDir(), str, gb);
@@ -1287,21 +1310,29 @@ bool GCodes::ActOnGcode(GCodeBuffer *gb)
 
     case 92: // Set steps/mm for some axes
     	for(int8_t drive = 0; drive < DRIVES; drive++)
-    		if(gb->Seen(gCodeLetters[drive]))
-    			platform->SetDriveStepsPerUnit(drive, gb->GetFValue());
+    	{
+    		//Do AXES first
+			if(gb->Seen(gCodeLetters[drive])&& drive<AXES)
+				platform->SetDriveStepsPerUnit(drive, gb->GetFValue());
+			else if(gb->Seen('E')&& ((drive-AXES) == selectedHead))//then do active extruder
+					platform->SetDriveStepsPerUnit(AXES+selectedHead, gb->GetFValue());
+    	}
         break;
 
     case 104: // Depricated
     	if(gb->Seen('S'))
     	{
-    		reprap.GetHeat()->SetActiveTemperature(1, gb->GetFValue()); // 0 is the bed
-    		reprap.GetHeat()->Activate(1);
+        	float value=gb->GetFValue();
+    		reprap.GetHeat()->SetActiveTemperature(selectedHead+1, value); // 0 is the bed
+    		reprap.GetHeat()->SetStandbyTemperature(selectedHead+1, value); // FIXME have to set both to be compatible with M104
+    		reprap.GetHeat()->Activate(selectedHead+1);
     	}
     	break;
 
     case 105: // Deprecated...
     	strncpy(reply, "T:", STRING_LENGTH);
-    	for(int8_t heater = HEATERS - 1; heater > 0; heater--)
+    	//FIXME this used to decrement rather than increment through the heaters (odd behaviour)
+    	for(int8_t heater = 1; heater < HEATERS; heater++)
     	{
     		strncat(reply, ftoa(0, reprap.GetHeat()->GetTemperature(heater), 1), STRING_LENGTH);
     		strncat(reply, " ", STRING_LENGTH);
@@ -1319,6 +1350,17 @@ bool GCodes::ActOnGcode(GCodeBuffer *gb)
     	platform->CoolingFan(0.0);
       break;
       
+    case 109: //Deprecated... (but needed for multi extruder custom waits)
+    	if(gb->Seen('S'))
+    	{
+    		value=gb->GetFValue();
+			reprap.GetHeat()->SetActiveTemperature(selectedHead+1, value); // 0 is the bed
+    		reprap.GetHeat()->SetStandbyTemperature(selectedHead+1, value); // FIXME have to set both to be compatible with M104
+			reprap.GetHeat()->Activate(selectedHead+1);
+		}
+    	result = reprap.GetHeat()->HeaterAtSetTemperature(selectedHead+1);
+      break;
+
     case 110: // Set line numbers - line numbers are dealt with in the GCodeBuffer class
     	break;
 
@@ -1331,7 +1373,7 @@ bool GCodes::ActOnGcode(GCodeBuffer *gb)
     	reprap.EmergencyStop();
     	break;
 
-    case 114: // Deprecated
+    case 114:
     	str = GetCurrentCoordinates();
     	if(str != 0)
     	{
@@ -1340,16 +1382,15 @@ bool GCodes::ActOnGcode(GCodeBuffer *gb)
     		result = false;
     	break;
 
-    case 109: // Depricated
-    	if(gb->Seen('S'))
-    	{
-    		reprap.GetHeat()->SetActiveTemperature(1, gb->GetFValue()); // 0 is the bed
-    		reprap.GetHeat()->Activate(1);
-    	}
     case 116: // Wait for everything, especially set temperatures
     	if(!AllMovesAreFinishedAndMoveBufferIsLoaded())
     		return false;
     	result = reprap.GetHeat()->AllHeatersAtSetTemperatures();
+    	break;
+
+    	//TODO M119
+    case 119:
+        platform->Message(HOST_MESSAGE, "M119 - endstop status not yet implemented\n");
     	break;
 
     case 120:
@@ -1378,7 +1419,9 @@ bool GCodes::ActOnGcode(GCodeBuffer *gb)
     case 140: // Set bed temperature
       if(gb->Seen('S'))
       {
-        reprap.GetHeat()->SetActiveTemperature(0, gb->GetFValue());
+    	value=gb->GetFValue();
+        reprap.GetHeat()->SetActiveTemperature(0, value);
+		reprap.GetHeat()->SetStandbyTemperature(0, value); // FIXME have to set both??
         reprap.GetHeat()->Activate(0);
       }
       break;
@@ -1387,27 +1430,44 @@ bool GCodes::ActOnGcode(GCodeBuffer *gb)
       platform->Message(HOST_MESSAGE, "M141 - heated chamber not yet implemented\n");
       break;
 
+    case 190: // // Deprecated...
+    	if(gb->Seen('S'))
+    	{
+			value=gb->GetFValue();
+			reprap.GetHeat()->SetActiveTemperature(0, value);
+			reprap.GetHeat()->SetStandbyTemperature(0, value); // FIXME have to set both??
+			reprap.GetHeat()->Activate(0);
+    	}
+    	result = reprap.GetHeat()->HeaterAtSetTemperature(0);
+      break;
+
     case 201: // Set axis accelerations
     	for(int8_t drive = 0; drive < DRIVES; drive++)
     	{
-    		if(gb->Seen(gCodeLetters[drive]))
-    		{
-    			value = gb->GetFValue();
-    		}else{
-    			value = -1;
-    		}
-    		platform->SetAcceleration(drive, value);
+    		//Do AXES first
+			if(gb->Seen(gCodeLetters[drive])&& drive<AXES)
+			{
+	    		platform->SetAcceleration(drive, gb->GetFValue());
+			}
+			else if(gb->Seen('E')&& ((drive-AXES) == selectedHead))//then do active extruder
+					platform->SetAcceleration(AXES+selectedHead, gb->GetFValue()); //Set the E acceleration for the currently selected tool
     	}
     	break;
 
     case 203: // Set maximum feedrates
     	for(int8_t drive = 0; drive < DRIVES; drive++)
     	{
-    		if(gb->Seen(gCodeLetters[drive]))
-    		{
-    			value = gb->GetFValue()*distanceScale*0.016666667; // G Code feedrates are in mm/minute; we need mm/sec;
+    		//Do AXES first
+			if(gb->Seen(gCodeLetters[drive])&& drive<AXES)
+			{
+				value = gb->GetFValue()*distanceScale*0.016666667; // G Code feedrates are in mm/minute; we need mm/sec;
     			platform->SetMaxFeedrate(drive, value);
-    		}
+			}
+			else if(gb->Seen('E')&& ((drive-AXES) == selectedHead))//then do active extruder
+			{
+				value = gb->GetFValue()*distanceScale*0.016666667; // G Code feedrates are in mm/minute; we need mm/sec;
+				platform->SetMaxFeedrate(AXES+selectedHead, value); //Set the E Steps for the currently selected tool
+			}
     	}
     	break;
 
@@ -1543,10 +1603,18 @@ bool GCodes::ActOnGcode(GCodeBuffer *gb)
     case 906: // Set Motor currents
     	for(uint8_t i = 0; i < DRIVES; i++)
     	{
-    		if(gb->Seen(gCodeLetters[i]))
+    		//Do AXES first
+    		if(gb->Seen(gCodeLetters[i])&& i<AXES)
     		{
     			value = gb->GetFValue(); // mA
     			platform->SetMotorCurrent(i, value);
+    		}
+    		else
+    		{
+    			if(gb->Seen(gCodeLetters[i])){
+    				value = gb->GetFValue(); // mA
+    				platform->SetMotorCurrent(AXES+selectedHead, value);
+    			}
     		}
     	}
     	break;

@@ -169,12 +169,15 @@ RepRap::RepRap()
 
 void RepRap::Init()
 {
+	Serial2.begin(115200);//FIXME DEBUG
+	Serial2.println("Debug Serial Output Started"); //FIXME DEBUG
   debug = false;
   platform->Init();
   gCodes->Init();
   webserver->Init();
   move->Init();
   heat->Init();
+
   active = true;
 
   platform->Message(HOST_MESSAGE, NAME);
@@ -184,20 +187,23 @@ void RepRap::Init()
   platform->Message(HOST_MESSAGE, DATE);
   platform->Message(HOST_MESSAGE, ".\n\nExecuting ");
   platform->Message(HOST_MESSAGE, platform->GetConfigFile());
-  platform->Message(HOST_MESSAGE, "...\n\n");
-
+  platform->Message(HOST_MESSAGE, ":\n\n");
   platform->PushMessageIndent();
+	Serial2.println("Initialisation: Reading Gcode File ."); //FIXME DEBUG
   gCodes->RunConfigurationGCodes();
-  while(gCodes->PrintingAFile()) // Wait till the file is finished
+
+  while(gCodes->PrintingAFile())// Wait till the file is finished
 	  gCodes->Spin();
   platform->PopMessageIndent();
 
+	Serial2.println("Initialisation: Starting Network"); //FIXME DEBUG
   platform->Message(HOST_MESSAGE, "\nStarting network...\n");
   platform->StartNetwork(); // Need to do this here, as the configuration GCodes may set IP address etc.
 
   platform->Message(HOST_MESSAGE, "\n");
   platform->Message(HOST_MESSAGE, NAME);
   platform->Message(HOST_MESSAGE, " is up and running.\n");
+	Serial2.println("Initialisation: Complete"); //FIXME DEBUG
 }
 
 void RepRap::Exit()
@@ -213,14 +219,20 @@ void RepRap::Exit()
 
 void RepRap::Spin()
 {
+  //Serial2.print("Spin: Start, "); //FIXME DEBUG
   if(!active)
     return;
-
+  //Serial2.print("platform, "); //FIXME DEBUG
   platform->Spin();
+  //Serial2.print("webserver, "); //FIXME DEBUG
   webserver->Spin();
+  //Serial2.print("gCodes, "); //FIXME DEBUG
   gCodes->Spin();
+  //Serial2.print("move, "); //FIXME DEBUG
   move->Spin();
+  //Serial2.print("heat, "); //FIXME DEBUG
   heat->Spin();
+  //Serial2.println("Spin done"); //FIXME DEBUG
 }
 
 void RepRap::Diagnostics()

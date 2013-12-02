@@ -396,7 +396,9 @@ inline void Move::LiveCoordinates(float m[])
 inline void Move::SetLiveCoordinates(float coords[])
 {
 	for(int8_t drive = 0; drive <= DRIVES; drive++)
+	{
 		liveCoordinates[drive] = coords[drive];
+	}
 	//Transform(liveCoordinates);
 }
 

@@ -75,8 +75,8 @@ void Platform::Init()
 
   fileStructureInitialised = true;
 
-  mcp.begin();
-
+  mcpDuet.begin(); //only call begin once!
+  mcpExpansion.setMCP4461Address(0x2E);
   sysDir = SYS_DIR;
   configFile = CONFIG_FILE;
 
@@ -92,6 +92,7 @@ void Platform::Init()
   disableDrives = DISABLE_DRIVES;
   lowStopPins = LOW_STOP_PINS;
   highStopPins = HIGH_STOP_PINS;
+  homeDirection = HOME_DIRECTION;
   maxFeedrates = MAX_FEEDRATES;
   accelerations = ACCELERATIONS;
   driveStepsPerUnit = DRIVE_STEPS_PER_UNIT;
@@ -99,6 +100,7 @@ void Platform::Init()
   potWipes = POT_WIPES;
   senseResistor = SENSE_RESISTOR;
   maxStepperDigipotVoltage = MAX_STEPPER_DIGIPOT_VOLTAGE;
+  zProbeEnable = Z_PROBE_ENABLE; //FIXME remove this requirement
   zProbePin = -1; // Default is to use the switch
   zProbeCount = 0;
   zProbeSum = 0;
@@ -116,6 +118,7 @@ void Platform::Init()
 
   tempSensePins = TEMP_SENSE_PINS;
   heatOnPins = HEAT_ON_PINS;
+  heatOn = HEAT_ON;
   thermistorBetas = THERMISTOR_BETAS;
   thermistorSeriesRs = THERMISTOR_SERIES_RS;
   thermistorInfRs = THERMISTOR_25_RS;
@@ -135,27 +138,26 @@ void Platform::Init()
   webDir = WEB_DIR;
   gcodeDir = GCODE_DIR;
   tempDir = TEMP_DIR;
-
+  //FIXME Nasty having to specify individually if a pin is arduino or not.
   for(i = 0; i < DRIVES; i++)
   {
-
 	  if(stepPins[i] >= 0)
 	  {
-		  if(i > Z_AXIS)
+		  if(i == E0_DRIVE) //STEP_PINS {14, 25, 5, X2, 41}
 			  pinModeNonDue(stepPins[i], OUTPUT);
 		  else
 			  pinMode(stepPins[i], OUTPUT);
 	  }
 	  if(directionPins[i] >= 0)
 	  {
-		  if(i > Z_AXIS)
+		  if(i == E0_DRIVE) //DIRECTION_PINS {15, 26, 4, X3, 35}
 			  pinModeNonDue(directionPins[i], OUTPUT);
 		  else
 			  pinMode(directionPins[i], OUTPUT);
 	  }
 	  if(enablePins[i] >= 0)
 	  {
-		  if(i >= Z_AXIS)
+		  if(i == Z_AXIS || i==E0_DRIVE) //ENABLE_PINS {29, 27, X1, X0, 37}
 			  pinModeNonDue(enablePins[i], OUTPUT);
 		  else
 			  pinMode(enablePins[i], OUTPUT);
@@ -163,7 +165,6 @@ void Platform::Init()
 	  Disable(i);
 	  driveEnabled[i] = false;
   }
-
   for(i = 0; i < AXES; i++)
   {
 	  if(lowStopPins[i] >= 0)
@@ -178,26 +179,25 @@ void Platform::Init()
 	  }
   }  
   
-  if(heatOnPins[0] >= 0)
-        pinMode(heatOnPins[0], OUTPUT);
-  thermistorInfRs[0] = ( thermistorInfRs[0]*exp(-thermistorBetas[0]/(25.0 - ABS_ZERO)) );
-  
-  for(i = 1; i < HEATERS; i++)
+  for(i = 0; i < HEATERS; i++)
   {
     if(heatOnPins[i] >= 0)
-      pinModeNonDue(heatOnPins[i], OUTPUT);
+    	if(i >= 1) //HEAT_ON_PINS {6, X5, X7}
+    		pinModeNonDue(heatOnPins[i], OUTPUT);
+    	else
+    		pinMode(heatOnPins[i], OUTPUT);
     thermistorInfRs[i] = ( thermistorInfRs[i]*exp(-thermistorBetas[i]/(25.0 - ABS_ZERO)) );
   }
 
   if(zProbePin >= 0)
 	  pinMode(zProbePin, INPUT);
-  
+
+  //FIXME May need to use a SamNonDue Pin (X6)
   if(coolingFanPin >= 0)
   {
 	  pinMode(coolingFanPin, OUTPUT);
 	  analogWrite(coolingFanPin, 0);
   }
-
   InitialiseInterrupts();
   
   addToTime = 0.0;
@@ -333,7 +333,7 @@ void Platform::SetHeater(int8_t heater, const float& power)
     return;
   
   byte p = (byte)(255.0*fmin(1.0, fmax(0.0, power)));
-  if(HEAT_ON == 0)
+  if(heatOn[heater] == 0)
 	  p = 255 - p;
   if(heater == 0)
 	  analogWrite(heatOnPins[heater], p);
@@ -966,11 +966,11 @@ void Network::Init()
 
 void Network::Spin()
 {
-	if(!active)
-	{
+	//if(!active)
+	//{
 		//ResetEther();
-		return;
-	}
+	//	return;
+	//}
 
 	// Keep the Ethernet running
 

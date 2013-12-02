@@ -77,6 +77,7 @@ class GCodes
     char* GetCurrentCoordinates();
     bool PrintingAFile();
     void Diagnostics();
+    int8_t GetSelectedHead();
     
   private:
   
@@ -201,6 +202,11 @@ inline bool GCodes::NoHome()
 inline int8_t GCodes::Heater(int8_t head)
 {
    return head+1; 
+}
+
+inline int8_t GCodes::GetSelectedHead()
+{
+  return selectedHead;
 }
 
 #endif

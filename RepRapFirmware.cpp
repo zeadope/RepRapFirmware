@@ -177,7 +177,6 @@ void RepRap::Init()
   webserver->Init();
   move->Init();
   heat->Init();
-
   active = true;
 
   platform->Message(HOST_MESSAGE, NAME);
@@ -187,7 +186,8 @@ void RepRap::Init()
   platform->Message(HOST_MESSAGE, DATE);
   platform->Message(HOST_MESSAGE, ".\n\nExecuting ");
   platform->Message(HOST_MESSAGE, platform->GetConfigFile());
-  platform->Message(HOST_MESSAGE, ":\n\n");
+  platform->Message(HOST_MESSAGE, "...\n\n");
+
   platform->PushMessageIndent();
 	Serial2.println("Initialisation: Reading Gcode File ."); //FIXME DEBUG
   gCodes->RunConfigurationGCodes();
@@ -258,6 +258,7 @@ void RepRap::EmergencyStop()
 	for(i = 0; i < HEATERS; i++)
 		platform->SetHeater(i, 0.0);
 
+
 	// We do this twice, to avoid an interrupt switching
 	// a drive back on.  move->Exit() should prevent
 	// interrupts doing this.
@@ -271,6 +272,7 @@ void RepRap::EmergencyStop()
 			platform->Disable(i);
 		}
 	}
+	platform->Message(HOST_MESSAGE, "Emergency Stop! Reset the controller to continue.");
 }
 
 

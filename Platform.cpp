@@ -134,6 +134,7 @@ void Platform::Init()
   standbyTemperatures = STANDBY_TEMPERATURES;
   activeTemperatures = ACTIVE_TEMPERATURES;
   coolingFanPin = COOLING_FAN_PIN;
+  turnHeatOn = HEAT_ON;
 
   webDir = WEB_DIR;
   gcodeDir = GCODE_DIR;
@@ -966,11 +967,11 @@ void Network::Init()
 
 void Network::Spin()
 {
-	//if(!active)
-	//{
+	if(!active)
+	{
 		//ResetEther();
-	//	return;
-	//}
+		return;
+	}
 
 	// Keep the Ethernet running
 

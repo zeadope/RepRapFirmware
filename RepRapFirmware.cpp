@@ -169,8 +169,8 @@ RepRap::RepRap()
 
 void RepRap::Init()
 {
-	Serial2.begin(115200);//FIXME DEBUG
-	Serial2.println("Debug Serial Output Started"); //FIXME DEBUG
+//	Serial2.begin(115200);//FIXME DEBUG (an alternative serial out on serial 2)
+//	Serial2.println("Debug Serial Output Started"); //FIXME DEBUG
   debug = false;
   platform->Init();
   gCodes->Init();
@@ -189,21 +189,21 @@ void RepRap::Init()
   platform->Message(HOST_MESSAGE, "...\n\n");
 
   platform->PushMessageIndent();
-	Serial2.println("Initialisation: Reading Gcode File ."); //FIXME DEBUG
+//	Serial2.println("Initialisation: Reading Gcode File ."); //FIXME DEBUG
   gCodes->RunConfigurationGCodes();
 
   while(gCodes->PrintingAFile())// Wait till the file is finished
 	  gCodes->Spin();
   platform->PopMessageIndent();
 
-	Serial2.println("Initialisation: Starting Network"); //FIXME DEBUG
+//	Serial2.println("Initialisation: Starting Network"); //FIXME DEBUG
   platform->Message(HOST_MESSAGE, "\nStarting network...\n");
   platform->StartNetwork(); // Need to do this here, as the configuration GCodes may set IP address etc.
 
   platform->Message(HOST_MESSAGE, "\n");
   platform->Message(HOST_MESSAGE, NAME);
   platform->Message(HOST_MESSAGE, " is up and running.\n");
-	Serial2.println("Initialisation: Complete"); //FIXME DEBUG
+//	Serial2.println("Initialisation: Complete"); //FIXME DEBUG
 }
 
 void RepRap::Exit()

@@ -99,47 +99,8 @@ void Move::Init()
   liveCoordinates[DRIVES] = platform->HomeFeedRate(Z_AXIS);
 
   checkEndStopsOnNextMove = false;
-  
-  // The stepDistances arrays are look-up tables of the Euclidean distance 
-  // between the start and end of a step.  If the step is just along one axis,
-  // it's just that axis's step length.  If it's more, it is a Pythagoran 
-  // sum of all the axis steps that take part.
-  
-  float d, e;
-  
-  for(i = 0; i < (1<<AXES); i++)
-  {
-    d = 0.0;
-    for(j = 0; j < AXES; j++)
-    {
-       if(i & (1<<j))
-       {
-          e = 1.0/platform->DriveStepsPerUnit(j);
-          d += e*e;
-       }
-    }
-    stepDistances[i] = sqrt(d);
-  }
-  
-  for(i = 0; i < (1<<(DRIVES-AXES)); i++)
-  {
-    d = 0.0;
-    for(j = 0; j < (DRIVES-AXES); j++)
-    {
-       if(i & (1<<j))
-       {
-          e = 1.0/platform->DriveStepsPerUnit(AXES + j);
-          d += e*e;
-       }
-    }
-    extruderStepDistances[i] = sqrt(d);
-  }
-  
-  // We don't want 0.  If no axes/extruders are moving these should never be used.
-  // But try to be safe.
-  
-  stepDistances[0] = 1.0/platform->DriveStepsPerUnit(AXES);
-  extruderStepDistances[0] = stepDistances[0];
+
+  SetStepHypotenuse();
 
   currentFeedrate = -1.0;
 
@@ -147,15 +108,14 @@ void Move::Init()
   tanXY = 0.0;
   tanYZ = 0.0;
   tanXZ = 0.0;
-  zEquationSet = false;
 
   lastZHit = 0.0;
   zProbing = false;
 
   for(uint8_t point = 0; point < NUMBER_OF_PROBE_POINTS; point++)
   {
-	  xBedProbePoints[point] = (0.2 + 0.6*(float)(point%2))*platform->AxisLength(X_AXIS);
-	  yBedProbePoints[point] = (0.2 + 0.6*(float)(point/2))*platform->AxisLength(Y_AXIS);
+	  xBedProbePoints[point] = (0.3 + 0.6*(float)(point%2))*platform->AxisLength(X_AXIS);
+	  yBedProbePoints[point] = (0.0 + 0.9*(float)(point/2))*platform->AxisLength(Y_AXIS);
 	  zBedProbePoints[point] = 0.0;
 	  probePointSet[point] = unset;
   }
@@ -211,20 +171,15 @@ void Move::Spin()
 
   if(gCodes->ReadMove(nextMove, checkEndStopsOnNextMove))
   {
-//	Serial2.println("MOVE:SPIN() move to do"); //FIXME DEBUG
 	Transform(nextMove);
 
     currentFeedrate = nextMove[DRIVES]; // Might be G1 with just an F field
-//    Serial2.print("nextMove:nextMachineEndPoints, ");//FIXME DEBUG
-    for(int8_t drive = 0; drive < DRIVES; drive++){
+
+    for(int8_t drive = 0; drive < DRIVES; drive++)
     	nextMachineEndPoints[drive] = LookAhead::EndPointToMachine(drive, nextMove[drive]);
-//    	Serial2.print(nextMove[drive]); Serial2.print(":");//FIXME DEBUG
-//    	Serial2.print(nextMachineEndPoints[drive]);Serial2.print(", ");//FIXME DEBUG
-    }
-//    Serial2.println("READ");//FIXME DEBUG
 
     int8_t movementType = GetMovementType(lastMove->MachineEndPoints(), nextMachineEndPoints);
-//    Serial2.print("MOVE:SPIN() movement type: ");Serial2.println(movementType);//FIXME DEBUG
+
     // Throw it away if there's no real movement.
     
     if(movementType == noMove)
@@ -242,7 +197,7 @@ void Move::Spin()
     if(movementType & xyMove)
       nextMove[DRIVES] = fmax(nextMove[DRIVES], platform->InstantDv(X_AXIS));
     else if(movementType & eMove)
-      nextMove[DRIVES] = fmax(nextMove[DRIVES], platform->InstantDv(AXES+gCodes->GetSelectedHead())); //FIXME, TEST: changed to use the current extruder
+      nextMove[DRIVES] = fmax(nextMove[DRIVES], platform->InstantDv(AXES+gCodes->GetSelectedHead())); //FIXME, FIXED: changed to use the current extruder
     else
       nextMove[DRIVES] = fmax(nextMove[DRIVES], platform->InstantDv(Z_AXIS));
       
@@ -251,7 +206,7 @@ void Move::Spin()
     if(movementType & xyMove)
       nextMove[DRIVES] = fmin(nextMove[DRIVES], platform->MaxFeedrate(X_AXIS));  // Assumes X and Y are equal.  FIXME?
     else if(movementType & eMove)
-      nextMove[DRIVES] = fmin(nextMove[DRIVES], platform->MaxFeedrate(AXES+gCodes->GetSelectedHead()));  //FIXME, TEST: changed to use the current extruder
+      nextMove[DRIVES] = fmin(nextMove[DRIVES], platform->MaxFeedrate(AXES+gCodes->GetSelectedHead()));  //FIXME, FIXED: changed to use the current extruder
     else // Must be z
       nextMove[DRIVES] = fmin(nextMove[DRIVES], platform->MaxFeedrate(Z_AXIS));
 
@@ -370,6 +325,51 @@ int8_t Move::GetMovementType(long p0[], long p1[])
 	  result |= zMove;
 
   return result;
+}
+
+void Move::SetStepHypotenuse()
+{
+	 // The stepDistances arrays are look-up tables of the Euclidean distance
+	  // between the start and end of a step.  If the step is just along one axis,
+	  // it's just that axis's step length.  If it's more, it is a Pythagoran
+	  // sum of all the axis steps that take part.
+
+	  float d, e;
+	  int8_t i, j;
+
+	  for(i = 0; i < (1<<AXES); i++)
+	  {
+	    d = 0.0;
+	    for(j = 0; j < AXES; j++)
+	    {
+	       if(i & (1<<j))
+	       {
+	          e = 1.0/platform->DriveStepsPerUnit(j);
+	          d += e*e;
+	       }
+	    }
+	    stepDistances[i] = sqrt(d);
+	  }
+
+	  for(i = 0; i < (1<<(DRIVES-AXES)); i++)
+	  {
+	    d = 0.0;
+	    for(j = 0; j < (DRIVES-AXES); j++)
+	    {
+	       if(i & (1<<j))
+	       {
+	          e = 1.0/platform->DriveStepsPerUnit(AXES + j);
+	          d += e*e;
+	       }
+	    }
+	    extruderStepDistances[i] = sqrt(d);
+	  }
+
+	  // We don't want 0.  If no axes/extruders are moving these should never be used.
+	  // But try to be safe.
+
+	  stepDistances[0] = 1.0/platform->DriveStepsPerUnit(AXES); //FIXME is this multi extruder safe?
+	  extruderStepDistances[0] = stepDistances[0];
 }
 
 // Take an item from the look-ahead ring and add it to the DDA ring, if
@@ -614,6 +614,7 @@ void Move::SetIdentityTransform()
 	secondDegreeCompensation = false;
 }
 
+
 void Move::Transform(float xyzPoint[])
 {
 	xyzPoint[X_AXIS] = xyzPoint[X_AXIS] + tanXY*xyzPoint[Y_AXIS] + tanXZ*xyzPoint[Z_AXIS];
@@ -622,8 +623,6 @@ void Move::Transform(float xyzPoint[])
 		xyzPoint[Z_AXIS] = xyzPoint[Z_AXIS] + SecondDegreeTransformZ(xyzPoint[X_AXIS], xyzPoint[Y_AXIS]);
 	else
 		xyzPoint[Z_AXIS] = xyzPoint[Z_AXIS] + aX*xyzPoint[X_AXIS] + aY*xyzPoint[Y_AXIS] + aC;
-//	platform->GetLine()->Write(xyzPoint[Y_AXIS]);
-//	platform->GetLine()->Write('\n');
 }
 
 void Move::InverseTransform(float xyzPoint[])
@@ -636,8 +635,43 @@ void Move::InverseTransform(float xyzPoint[])
 	xyzPoint[X_AXIS] = xyzPoint[X_AXIS] - (tanXY*xyzPoint[Y_AXIS] + tanXZ*xyzPoint[Z_AXIS]);
 }
 
+
+void Move::SetAxisCompensation(int8_t axis, float tangent)
+{
+	float currentPositions[DRIVES+1];
+	if(!GetCurrentState(currentPositions))
+	{
+		platform->Message(HOST_MESSAGE, "Setting bed equation - can't get position!");
+		return;
+	}
+
+	switch(axis)
+	{
+	case X_AXIS:
+		tanXY = tangent;
+		break;
+	case Y_AXIS:
+		tanYZ = tangent;
+		break;
+	case Z_AXIS:
+		tanXZ = tangent;
+		break;
+	default:
+		platform->Message(HOST_MESSAGE, "SetAxisCompensation: dud axis.\n");
+	}
+	Transform(currentPositions);
+	SetPositions(currentPositions);
+}
+
 void Move::SetProbedBedEquation()
 {
+	float currentPositions[DRIVES+1];
+	if(!GetCurrentState(currentPositions))
+	{
+		platform->Message(HOST_MESSAGE, "Setting bed equation - can't get position!");
+		return;
+	}
+
 	if(NumberOfProbePoints() >= 3)
 	{
 		secondDegreeCompensation = (NumberOfProbePoints() == 4);
@@ -658,7 +692,8 @@ void Move::SetProbedBedEquation()
 			 */
 			xRectangle = 1.0/(xBedProbePoints[3] - xBedProbePoints[0]);
 			yRectangle = 1.0/(yBedProbePoints[1] - yBedProbePoints[0]);
-			zEquationSet = true;
+			Transform(currentPositions);
+			SetPositions(currentPositions);
 			return;
 		}
 	} else
@@ -684,7 +719,8 @@ void Move::SetProbedBedEquation()
 	aX = -a/c;
 	aY = -b/c;
 	aC = -d/c;
-	zEquationSet = true;
+	Transform(currentPositions);
+	SetPositions(currentPositions);
 }
 
 // FIXME

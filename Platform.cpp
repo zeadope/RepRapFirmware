@@ -75,8 +75,8 @@ void Platform::Init()
 
   fileStructureInitialised = true;
 
-  mcpDuet.begin(); //only call begin once!
-  mcpExpansion.setMCP4461Address(0x2E);
+  mcpDuet.begin(); //only call begin once in the entire execution, this begins the I2C comms on that channel for all objects
+  mcpExpansion.setMCP4461Address(0x2E); //not required for mcpDuet, as this uses the default address
   sysDir = SYS_DIR;
   configFile = CONFIG_FILE;
 
@@ -100,7 +100,6 @@ void Platform::Init()
   potWipes = POT_WIPES;
   senseResistor = SENSE_RESISTOR;
   maxStepperDigipotVoltage = MAX_STEPPER_DIGIPOT_VOLTAGE;
-  zProbeEnable = Z_PROBE_ENABLE; //FIXME remove this requirement
   zProbePin = -1; // Default is to use the switch
   zProbeCount = 0;
   zProbeSum = 0;
@@ -139,26 +138,31 @@ void Platform::Init()
   webDir = WEB_DIR;
   gcodeDir = GCODE_DIR;
   tempDir = TEMP_DIR;
-  //FIXME Nasty having to specify individually if a pin is arduino or not.
+  /*
+  	FIXME Nasty having to specify individually if a pin is arduino or not.
+    requires a unified variant file. If implemented this would be much better
+	to allow for different hardwarein the future
+  */
   for(i = 0; i < DRIVES; i++)
   {
+
 	  if(stepPins[i] >= 0)
 	  {
-		  if(i == E0_DRIVE) //STEP_PINS {14, 25, 5, X2, 41}
+		  if(i == E0_DRIVE || i == E3_DRIVE) //STEP_PINS {14, 25, 5, X2, 41, 39, X4, 49}
 			  pinModeNonDue(stepPins[i], OUTPUT);
 		  else
 			  pinMode(stepPins[i], OUTPUT);
 	  }
 	  if(directionPins[i] >= 0)
 	  {
-		  if(i == E0_DRIVE) //DIRECTION_PINS {15, 26, 4, X3, 35}
+		  if(i == E0_DRIVE) //DIRECTION_PINS {15, 26, 4, X3, 35, 53, 51, 48}
 			  pinModeNonDue(directionPins[i], OUTPUT);
 		  else
 			  pinMode(directionPins[i], OUTPUT);
 	  }
 	  if(enablePins[i] >= 0)
 	  {
-		  if(i == Z_AXIS || i==E0_DRIVE) //ENABLE_PINS {29, 27, X1, X0, 37}
+		  if(i == Z_AXIS || i==E0_DRIVE || i==E2_DRIVE) //ENABLE_PINS {29, 27, X1, X0, 37, X8, 50, 47}
 			  pinModeNonDue(enablePins[i], OUTPUT);
 		  else
 			  pinMode(enablePins[i], OUTPUT);
@@ -166,7 +170,7 @@ void Platform::Init()
 	  Disable(i);
 	  driveEnabled[i] = false;
   }
-  for(i = 0; i < AXES; i++)
+  for(i = 0; i < DRIVES; i++)
   {
 	  if(lowStopPins[i] >= 0)
 	  {
@@ -183,7 +187,7 @@ void Platform::Init()
   for(i = 0; i < HEATERS; i++)
   {
     if(heatOnPins[i] >= 0)
-    	if(i >= 1) //HEAT_ON_PINS {6, X5, X7}
+    	if(i == E0_HEATER || i==E1_HEATER) //HEAT_ON_PINS {6, X5, X7, 7, 8, 9}
     		pinModeNonDue(heatOnPins[i], OUTPUT);
     	else
     		pinMode(heatOnPins[i], OUTPUT);
@@ -336,22 +340,10 @@ void Platform::SetHeater(int8_t heater, const float& power)
   byte p = (byte)(255.0*fmin(1.0, fmax(0.0, power)));
   if(heatOn[heater] == 0)
 	  p = 255 - p;
-  if(heater == 0)
-	  analogWrite(heatOnPins[heater], p);
+  if(heater == E0_HEATER || heater == E1_HEATER) //HEAT_ON_PINS {6, X5, X7, 7, 8, 9}
+	 analogWriteNonDue(heatOnPins[heater], p);
   else
-	  analogWriteNonDue(heatOnPins[heater], p);
-}
-
-inline void Platform::PollZHeight()
-{
-	if(zProbeCount >= 5)
-	{
-		zProbeValue = zProbeSum/5;
-		zProbeSum = 0;
-		zProbeCount = 0;
-	}
-	zProbeSum += GetRawZHeight();
-	zProbeCount++;
+	 analogWrite(heatOnPins[heater], p);
 }
 
 
@@ -398,7 +390,7 @@ void MassStorage::Init()
 	hsmciPinsinit();
 	// Initialize SD MMC stack
 	sd_mmc_init();
-
+	delay(5);
 	int sdPresentCount = 0;
 	while ((CTRL_NO_PRESENT == sd_mmc_check(0)) && (sdPresentCount < 5))
 	{
@@ -967,11 +959,12 @@ void Network::Init()
 
 void Network::Spin()
 {
-	if(!active)
-	{
-		//ResetEther();
-		return;
-	}
+ // FIXME test to see if commenting or uncommenting this check effects ethernet stability or turn on
+	//if(!active) 
+	//{
+		//ResetEther(); //this should never be uncommented!
+	//	return;
+	//}
 
 	// Keep the Ethernet running
 

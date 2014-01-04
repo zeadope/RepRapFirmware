@@ -133,7 +133,7 @@ void Platform::Init()
   standbyTemperatures = STANDBY_TEMPERATURES;
   activeTemperatures = ACTIVE_TEMPERATURES;
   coolingFanPin = COOLING_FAN_PIN;
-  turnHeatOn = HEAT_ON;
+  turnHeatOn = heatOn[0];
 
   webDir = WEB_DIR;
   gcodeDir = GCODE_DIR;

@@ -197,11 +197,10 @@ void Platform::Init()
   if(zProbePin >= 0)
 	  pinMode(zProbePin, INPUT);
 
-  //FIXME May need to use a SamNonDue Pin (X6)
   if(coolingFanPin >= 0)
   {
-	  pinMode(coolingFanPin, OUTPUT);
-	  analogWrite(coolingFanPin, 0);
+	  //pinModeNonDue(coolingFanPin, OUTPUT); //not required as analogwrite does this automatically
+	  analogWriteNonDue(coolingFanPin, 255); //inverse logic for Duet v0.6 this turns it off
   }
   InitialiseInterrupts();
   

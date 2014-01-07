@@ -25,6 +25,7 @@ Licence: GPL
 #define STACK 5
 
 #define GCODE_LETTERS { 'X', 'Y', 'Z', 'E', 'F' } // The drives and feedrate in a GCode
+#define FEEDRATE_LETTER 'F'//FIX to work with multiple extruders without having to re-define GCODE_LETTERS array
 
 // Small class to hold an individual GCode and provide functions to allow it to be parsed
 

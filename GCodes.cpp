@@ -33,7 +33,7 @@ GCodes::GCodes(Platform* p, Webserver* w)
   webGCode = new GCodeBuffer(platform, "web: ");
   fileGCode = new GCodeBuffer(platform, "file: ");
   serialGCode = new GCodeBuffer(platform, "serial: ");
-  cannedCycleGCode = new GCodeBuffer(platform, "canned: ");
+  cannedCycleGCode = new GCodeBuffer(platform, "macro: ");
 }
 
 void GCodes::Exit()
@@ -61,7 +61,6 @@ void GCodes::Init()
   for(int8_t i = 0; i < DRIVES - AXES; i++)
     lastPos[i] = 0.0;
   fileBeingPrinted = NULL;
-  saveFileBeingPrinted = NULL;
   fileToPrint = NULL;
   fileBeingWritten = NULL;
   configFile = NULL;
@@ -242,8 +241,9 @@ bool GCodes::Push()
   drivesRelativeStack[stackPointer] = drivesRelative;
   axesRelativeStack[stackPointer] = axesRelative;
   feedrateStack[stackPointer] = gFeedRate; 
+  fileStack[stackPointer] = fileBeingPrinted;
   stackPointer++;
-  
+  platform->PushMessageIndent();
   return true;
 }
 
@@ -263,7 +263,8 @@ bool GCodes::Pop()
   stackPointer--;
   drivesRelative = drivesRelativeStack[stackPointer];
   axesRelative = axesRelativeStack[stackPointer];
-  
+  fileBeingPrinted = fileStack[stackPointer];
+  platform->PopMessageIndent();
   // Remember for next time if we have just been switched
   // to absolute drive moves
   
@@ -379,18 +380,8 @@ bool GCodes::DoFileCannedCycles(char* fileName)
 	{
 		// No
 
-		if(!AllMovesAreFinishedAndMoveBufferIsLoaded())
+		if(!Push())
 			return false;
-
-		if(fileBeingPrinted != NULL)
-		{
-			if(saveFileBeingPrinted != NULL)
-			{
-				platform->Message(HOST_MESSAGE, "Canned cycle files cannot be nested!\n");
-				return true;
-			}
-			saveFileBeingPrinted = fileBeingPrinted;
-		}
 
 		fileBeingPrinted = platform->GetFileStore(platform->GetSysDir(), fileName, false);
 		if(fileBeingPrinted == NULL)
@@ -398,11 +389,8 @@ bool GCodes::DoFileCannedCycles(char* fileName)
 			platform->Message(HOST_MESSAGE, "Canned cycle GCode file not found - ");
 			platform->Message(HOST_MESSAGE, fileName);
 			platform->Message(HOST_MESSAGE, "\n");
-			if(saveFileBeingPrinted != NULL)
-			{
-				fileBeingPrinted = saveFileBeingPrinted;
-				saveFileBeingPrinted = NULL;
-			}
+			if(!Pop())
+				platform->Message(HOST_MESSAGE, "Cannot pop the stack.\n");
 			return true;
 		}
 		doingCannedCycleFile = true;
@@ -416,13 +404,10 @@ bool GCodes::DoFileCannedCycles(char* fileName)
 	{
 		// Yes
 
+		if(!Pop())
+			return false;
 		doingCannedCycleFile = false;
 		cannedCycleGCode->Init();
-		if(saveFileBeingPrinted != NULL)
-		{
-			fileBeingPrinted = saveFileBeingPrinted;
-			saveFileBeingPrinted = NULL;
-		}
 		return true;
 	}
 
@@ -454,11 +439,6 @@ bool GCodes::FileCannedCyclesReturn()
 		fileBeingPrinted->Close();
 
 	fileBeingPrinted = NULL;
-	if(saveFileBeingPrinted != NULL)
-	{
-		fileBeingPrinted = saveFileBeingPrinted;
-		saveFileBeingPrinted = NULL;
-	}
 	return true;
 }
 
@@ -763,7 +743,7 @@ bool GCodes::SetSingleZProbeAtAPosition(GCodeBuffer *gb)
 		return true;
 	} else
 	{
-		if(DoSingleZProbe())
+		if(DoSingleZProbeAtPoint())
 		{
 			probeCount = 0;
 			reprap.GetMove()->SetZProbing(false);
@@ -952,20 +932,6 @@ void GCodes::QueueFileToPrint(char* fileName)
 	  platform->Message(HOST_MESSAGE, "GCode file not found\n");
 }
 
-// Run the configuration G Code file to set up the machine.  Usually just called once
-// on re-boot.
-
-void GCodes::RunConfigurationGCodes()
-{
-	  fileToPrint = platform->GetFileStore(platform->GetSysDir(), platform->GetConfigFile(), false);
-	  if(fileToPrint == NULL)
-	  {
-		  platform->Message(HOST_MESSAGE, "Configuration file not found\n");
-		  return;
-	  }
-      fileBeingPrinted = fileToPrint;
-      fileToPrint = NULL;
-}
 
 bool GCodes::SendConfigToLine()
 {
@@ -1745,7 +1711,7 @@ bool GCodes::ActOnGcode(GCodeBuffer *gb)
     	result = DoFileCannedCycles("homey.g");
     	break;
 
-//FIXME  no "homez.g" call - assuming probing is always the way to home Z with a canned cycle?
+
 
     case 906: // Set Motor currents
     	for(uint8_t i = 0; i < DRIVES; i++)

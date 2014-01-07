@@ -190,10 +190,8 @@ void RepRap::Init()
 
   platform->PushMessageIndent();
 //	Serial2.println("Initialisation: Reading Gcode File ."); //FIXME DEBUG
-  gCodes->RunConfigurationGCodes();
+  while(gCodes->RunConfigurationGCodes()); // Wait till the file is finished
 
-  while(gCodes->PrintingAFile())// Wait till the file is finished
-	  gCodes->Spin();
   platform->PopMessageIndent();
 
 //	Serial2.println("Initialisation: Starting Network"); //FIXME DEBUG

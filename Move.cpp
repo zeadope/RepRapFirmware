@@ -209,7 +209,7 @@ void Move::Spin()
       nextMove[DRIVES] = fmin(nextMove[DRIVES], platform->MaxFeedrate(AXES+gCodes->GetSelectedHead()));  //FIXME, FIXED: changed to use the current extruder
     else // Must be z
       nextMove[DRIVES] = fmin(nextMove[DRIVES], platform->MaxFeedrate(Z_AXIS));
-
+    
     if(!LookAheadRingAdd(nextMachineEndPoints, nextMove[DRIVES], 0.0, checkEndStopsOnNextMove, movementType))
       platform->Message(HOST_MESSAGE, "Can't add to non-full look ahead ring!\n"); // Should never happen...
   }
@@ -274,7 +274,7 @@ bool Move::GetCurrentState(float m[])
     if(i < AXES)
       m[i] = lastMove->MachineToEndPoint(i);
     else
-      m[i] = 0.00; //FIXME This resets extruders to 0.0, even the inactive ones (is this behaviour desired?)
+      m[i] = 0.0; //FIXME This resets extruders to 0.0, even the inactive ones (is this behaviour desired?)
       //m[i] = lastMove->MachineToEndPoint(i); //FIXME TEST alternative that does not reset extruders to 0
   }
   if(currentFeedrate >= 0.0)

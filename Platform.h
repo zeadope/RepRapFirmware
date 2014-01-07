@@ -2,7 +2,7 @@
 
 RepRapFirmware - Platform: RepRapPro Mendel with Duet controller
 
-Platform contains all the code and definitons to deal with machine-dependent things such as control 
+Platform contains all the code and definitions to deal with machine-dependent things such as control
 pins, bed area, number of extruders, tolerable accelerations and speeds and so on.
 
 No definitions that are system-independent should go in here.  Put them in Configuration.h.  Note that
@@ -139,7 +139,7 @@ Licence: GPL
 #define STANDBY_TEMPERATURES {ABS_ZERO, ABS_ZERO, ABS_ZERO, ABS_ZERO, ABS_ZERO, ABS_ZERO} // We specify one for the bed, though it's not needed
 #define ACTIVE_TEMPERATURES {ABS_ZERO, ABS_ZERO, ABS_ZERO, ABS_ZERO, ABS_ZERO, ABS_ZERO}
 #define COOLING_FAN_PIN X6 //pin D34 is PWM capable but not an Arduino PWM pin - use X6 instead
-#define HEAT_ON {1,1,0,0,0,0} // 0 for inverted heater (eg Duet v0.6, Expansion v0.2)
+#define HEAT_ON {0,0,0,0,0,0} // 0 for inverted heater (eg Duet v0.6, Expansion v0.2)
 
 #define AD_RANGE 1023.0//16383 // The A->D converter that measures temperatures gives an int this big as its max value
 
@@ -772,6 +772,7 @@ inline void Platform::Step(byte drive)
 }
 
 // current is in mA
+
 inline void Platform::SetMotorCurrent(byte drive, float current)
 {
 	unsigned short pot = (unsigned short)(0.256*current*8.0*senseResistor/maxStepperDigipotVoltage);

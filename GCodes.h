@@ -42,9 +42,9 @@ class GCodeBuffer
     char* GetUnprecedentedString();
     char* GetString();
     char* Buffer();
-    bool Finished();
+    bool Finished() const;
     void SetFinished(bool f);
-    char* WritingFileDirectory();
+    char* WritingFileDirectory() const;
     void SetWritingFileDirectory(char* wfd);
     
   private:
@@ -76,9 +76,10 @@ class GCodes
     void QueueFileToPrint(char* fileName);
     bool GetProbeCoordinates(int count, float& x, float& y, float& z);
     char* GetCurrentCoordinates();
-    bool PrintingAFile();
+    bool PrintingAFile() const;
     void Diagnostics();
     int8_t GetSelectedHead();
+    bool HaveIncomingData() const;
     
   private:
   
@@ -99,7 +100,7 @@ class GCodes
     bool SetOffsets(GCodeBuffer *gb);
     bool SetPositions(GCodeBuffer *gb);
     void LoadMoveBufferFromGCode(GCodeBuffer *gb, bool doingG92);
-    bool NoHome();
+    bool NoHome() const;
     bool Push();
     bool Pop();
     bool DisableDrives();
@@ -112,7 +113,7 @@ class GCodes
     void WriteHTMLToFile(char b, GCodeBuffer *gb);
     bool OffsetAxes(GCodeBuffer *gb);
 
-    int8_t Heater(int8_t head);
+    int8_t Heater(int8_t head) const;
     Platform* platform;
     bool active;
     Webserver* webserver;
@@ -133,7 +134,7 @@ class GCodes
     FileStore* fileStack[STACK];
     int8_t stackPointer;
     char gCodeLetters[DRIVES + 1]; // Extra is for F
-    float lastPos[DRIVES - AXES]; // Just needed for relative moves.
+    float lastPos[DRIVES - AXES]; // Just needed for relative moves. //FIXME what about when AXES are relative?
 	float record[DRIVES+1];
 	float moveToDo[DRIVES+1];
 	bool activeDrive[DRIVES+1];
@@ -174,7 +175,7 @@ inline char* GCodeBuffer::Buffer()
   return gcodeBuffer;
 }
 
-inline bool GCodeBuffer::Finished()
+inline bool GCodeBuffer::Finished() const
 {
   return finished;
 }
@@ -184,7 +185,7 @@ inline void GCodeBuffer::SetFinished(bool f)
   finished = f;
 }
 
-inline char* GCodeBuffer::WritingFileDirectory()
+inline char* GCodeBuffer::WritingFileDirectory() const
 {
 	return writingFileDirectory;
 }
@@ -194,12 +195,17 @@ inline void GCodeBuffer::SetWritingFileDirectory(char* wfd)
 	writingFileDirectory = wfd;
 }
 
-inline bool GCodes::PrintingAFile()
+inline bool GCodes::PrintingAFile() const
 {
   return fileBeingPrinted != NULL;
 }
 
-inline bool GCodes::NoHome()
+inline bool GCodes::HaveIncomingData() const
+{
+	return fileBeingPrinted != NULL || webserver->GCodeAvailable() || (platform->GetLine()->Status() & byteAvailable);
+}
+
+inline bool GCodes::NoHome() const
 {
    return !(homeX || homeY || homeZ || homeAxisMoveCount);
 }
@@ -207,7 +213,7 @@ inline bool GCodes::NoHome()
 // This function takes care of the fact that the heater and head indices 
 // don't match because the bed is heater 0.
 
-inline int8_t GCodes::Heater(int8_t head)
+inline int8_t GCodes::Heater(int8_t head) const
 {
    return head+1; 
 }

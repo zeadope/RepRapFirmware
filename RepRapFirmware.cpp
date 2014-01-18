@@ -188,11 +188,8 @@ void RepRap::Init()
   platform->Message(HOST_MESSAGE, platform->GetConfigFile());
   platform->Message(HOST_MESSAGE, "...\n\n");
 
-  platform->PushMessageIndent();
 //	Serial2.println("Initialisation: Reading Gcode File ."); //FIXME DEBUG
   while(gCodes->RunConfigurationGCodes()); // Wait till the file is finished
-
-  platform->PopMessageIndent();
 
 //	Serial2.println("Initialisation: Starting Network"); //FIXME DEBUG
   platform->Message(HOST_MESSAGE, "\nStarting network...\n");
@@ -300,7 +297,7 @@ char* ftoa(char *a, const float& f, int prec)
   while (*a != '\0') a++;
   *a++ = '.';
   long decimal = abs((long)((f - (float)whole) * precision[prec]));
-  snprintf(a, STRING_LENGTH, "%d", decimal);
+  snprintf(a, STRING_LENGTH, "%0*d", prec, decimal);
   return ret;
 }
 

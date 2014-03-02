@@ -74,7 +74,7 @@ void RepRapNetworkReceiveInput(char* ip, int length, void* pbuf, void* pcb, void
 void RepRapNetworkInputBufferReleased(void* pbuf);
 void RepRapNetworkConnectionError(void* h);
 void RepRapNetworkMessage(char* s);
-void RepRapNetworkAllowWriting();
+void RepRapNetworkSentPacketAcknowledged();
 bool RepRapNetworkHasALiveClient();
 
 // Sanity check on initialisations.

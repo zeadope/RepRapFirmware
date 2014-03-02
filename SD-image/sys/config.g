@@ -1,4 +1,4 @@
-; RepRapPro Ormerod
+; Think3dprint3d Mendel90 with Kraken Configuration
 ; Standard configuration G Codes
 M111 S1; Debug on
 M550 PMendel90; Set the machine's name
@@ -23,10 +23,10 @@ T1 ; Select extruder 1
 M92 E650; Set extruder steps/mm
 M906 .E800 ; Motor current (mA)
 T2 ; Select extruder 2
-M92 E650; Set extruder steps/mm
+M92 E642; Set extruder steps/mm
 M906 .E800 ; Motor current (mA)
 T3 ; Select extruder 3
-M92 E650; Set extruder steps/mm
+M92 E625; Set extruder steps/mm
 M906 .E800 ; Motor current (mA)
 T4 ; Select extruder 4
 M92 E650; Set extruder steps/mm

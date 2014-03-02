@@ -59,9 +59,9 @@ Licence: GPL
 
 // Some numbers...
 
-#define STRING_LENGTH 1029
+#define STRING_LENGTH 1029		// needs to be long enough to receive web data
 #define SHORT_STRING_LENGTH 40
-#define TIME_TO_REPRAP 1.0e6 // Convert seconds to the units used by the machine (usually microseconds)
+#define TIME_TO_REPRAP 1.0e6 	// Convert seconds to the units used by the machine (usually microseconds)
 #define TIME_FROM_REPRAP 1.0e-6 // Convert the units used by the machine (usually microseconds) to seconds
 
 /**************************************************************************************************/
@@ -87,7 +87,7 @@ Licence: GPL
 #define DISABLE_DRIVES {false, false, true, false, false, false, false, false} // Set true to disable a drive when it becomes idle
 #define LOW_STOP_PINS {-1, -1, -1, 31, 24, 46, 45, 44} //E Stops not currently used
 #define HIGH_STOP_PINS {11, 28, 60, -1, -1, -1, -1, -1} 
-#define HOME_DIRECTION {1, 1, 1, -1, -1, -1, -1, -1} // 1 for Max/High, -1 for Min/ Low
+//#define HOME_DIRECTION {1, 1, 1, -1, -1, -1, -1, -1} // 1 for Max/High, -1 for Min/ Low
 #define ENDSTOP_HIT 1 // when a stop == this it is hit
 // Indices for motor current digipots (if any)
 //  first 4 are for digipot 1,(on duet)
@@ -96,14 +96,15 @@ Licence: GPL
 #define POT_WIPES {1, 3, 2, 0, 1, 3, 2, 0}
 #define SENSE_RESISTOR 0.1   // Stepper motor current sense resistor
 #define MAX_STEPPER_DIGIPOT_VOLTAGE ( 3.3*2.5/(2.7+2.5) ) // Stepper motor current reference voltage
-#define Z_PROBE_AD_VALUE 400
-#define Z_PROBE_STOP_HEIGHT 0.7 // mm
-#define Z_PROBE_PIN -1 // Analogue pin number (0) //FIXME confirm A6 or A0
+#define Z_PROBE_AD_VALUE (400)					// Default for the Z probe - should be overwritten by experiment
+#define Z_PROBE_STOP_HEIGHT (0.7) 				// mm
+#define Z_PROBE_PIN (-1) // Analogue pin number (0) //FIXME confirm A6 or A0
 #define Z_PROBE_MOD_PIN (61)	// Digital pin number to turn the IR LED on (high) or off (low)
 #define MAX_FEEDRATES {100.0, 100.0, 3.0, 20.0, 20.0, 20.0, 20.0, 20.0}    // mm/sec
 #define ACCELERATIONS {500.0, 500.0, 20.0, 250.0, 250.0, 250.0, 250.0, 250.0}    // mm/sec^2
 #define DRIVE_STEPS_PER_UNIT {80, 80, 4000.0, 655.0, 655.0, 655.0, 655.0, 655.0}
 #define INSTANT_DVS {15.0, 15.0, 0.2, 2.0, 2.0, 2.0, 2.0, 2.0}    // (mm/sec)
+#define NUM_MIXING_DRIVES 1; //number of mixing drives
 
 // AXES
 
@@ -127,24 +128,24 @@ Licence: GPL
 #define HEAT_ON_PINS {6, X5, X7, 7, 8, 9}  //pin D38 is PWM capable but not an Arduino PWM pin - //FIXME TEST if E1 PWM works as D38
 #define THERMISTOR_BETAS {4036, 3960.0, 3960.0, 3960.0, 3960.0, 3960.0} // Bed thermistor: B57861S104F40; Extruder thermistor: RS 198-961
 #define THERMISTOR_SERIES_RS {1000, 1000, 1000, 1000, 1000, 1000} // Ohms in series with the thermistors
-#define THERMISTOR_25_RS {100000.0, 100000.0, 100000.0, 100000.0, 100000.0, 100000.0} // Thermistor ohms at 25 C = 298.15 K
+#define THERMISTOR_25_RS {100000.0, 10000.0, 10000.0, 10000.0, 10000.0, 100000.0} // Thermistor ohms at 25 C = 298.15 K
 #define USE_PID {false, true, true, true, true, true} // PID or bang-bang for this heater?
-#define PID_KIS {-1, 2.2, 2.2, 2.2, 2.2, 2.2} // PID constants...
-#define PID_KDS {-1, 80, 80, 80, 80, 80}
-#define PID_KPS {-1, 12, 12, 12, 12, 12}
-#define FULL_PID_BAND {-1, 150.0, 150.0, 150.0, 150.0, 150.0}
-#define PID_MIN {-1, 0.0, 0.0, 0.0, 0.0, 0.0}
-#define PID_MAX {-1, 125.0, 125.0, 125.0, 125.0, 125.0}
-#define D_MIX {-1, 0.95, 0.95, 0.95, 0.95, 0.95}
-#define TEMP_INTERVAL 0.122 // secs - check and control temperatures this often
+#define PID_KIS { 2.2, 0.027 / HEAT_SAMPLE_TIME, 0.027 / HEAT_SAMPLE_TIME, 0.027 / HEAT_SAMPLE_TIME, 0.027 / HEAT_SAMPLE_TIME, 0.027 / HEAT_SAMPLE_TIME} // Integral PID constants, adjusted by dc42 for Ormerod hot end
+#define PID_KDS {80, 100 * HEAT_SAMPLE_TIME, 100 * HEAT_SAMPLE_TIME, 100 * HEAT_SAMPLE_TIME, 100 * HEAT_SAMPLE_TIME, 100 * HEAT_SAMPLE_TIME}// Derivative PID constants
+#define PID_KPS {12, 20, 20, 20, 20, 20}						// Proportional PID constants
+#define FULL_PID_BAND {150, 150.0, 150.0, 150.0, 150.0, 150.0}	// errors larger than this cause heater to be on or off and I-term set to zero
+#define PID_MIN {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}					// minimum value of I-term
+#define PID_MAX {180, 180, 180, 180, 180, 180}					// maximum value of I-term, must be high enough to reach 245C for ABS printing
+#define D_MIX {0.5, 0.5, 0.5, 0.5, 0.5, 0.5}					// higher values make the PID controller less sensitive to noise in the temperature reading, but too high makes it unstable
+#define TEMP_INTERVAL 0.122 									// secs - check and control temperatures this often
 #define STANDBY_TEMPERATURES {ABS_ZERO, ABS_ZERO, ABS_ZERO, ABS_ZERO, ABS_ZERO, ABS_ZERO} // We specify one for the bed, though it's not needed
 #define ACTIVE_TEMPERATURES {ABS_ZERO, ABS_ZERO, ABS_ZERO, ABS_ZERO, ABS_ZERO, ABS_ZERO}
-#define COOLING_FAN_PIN X6 //pin D34 is PWM capable but not an Arduino PWM pin - use X6 instead
-#define HEAT_ON 0 // 0 for inverted heater (eg Duet v0.6) 1 for not (e.g. Duet v0.4)
+#define COOLING_FAN_PIN X6 										//pin D34 is PWM capable but not an Arduino PWM pin - use X6 instead
+#define HEAT_ON 0 												// 0 for inverted heater (eg Duet v0.6) 1 for not (e.g. Duet v0.4)
 
-#define AD_RANGE 1023.0//16383 // The A->D converter that measures temperatures gives an int this big as its max value
+#define AD_RANGE 1023.0											//16383 // The A->D converter that measures temperatures gives an int this big as its max value
 
-#define HOT_BED 0 // The index of the heated bed; set to -1 if there is no heated bed
+#define HOT_BED 0 	// The index of the heated bed; set to -1 if there is no heated bed
 #define E0_HEATER 1 //the index of the first extruder heater
 #define E1_HEATER 2 //the index of the first extruder heater
 #define E2_HEATER 3 //the index of the first extruder heater
@@ -155,45 +156,50 @@ Licence: GPL
 
 // File handling
 
-#define MAX_FILES 7
-#define FILE_BUF_LEN 256
-#define SD_SPI 4 //Pin
-#define WEB_DIR "0:/www/" // Place to find web files on the server
-#define GCODE_DIR "0:/gcodes/" // Ditto - g-codes
-#define SYS_DIR "0:/sys/" // Ditto - system files
-#define TEMP_DIR "0:/tmp/" // Ditto - temporary files
-#define FILE_LIST_SEPARATOR ','
-#define FILE_LIST_BRACKET '"'
-#define FILE_LIST_LENGTH 1000 // Maximum length of file list
+#define MAX_FILES 7								// Maximum number of simultaneously open files
+#define FILE_BUF_LEN 256						// File write buffer size
+#define SD_SPI 4 								// not used?
+#define WEB_DIR "0:/www/" 						// Place to find web files on the SD card
+#define GCODE_DIR "0:/gcodes/" 					// Ditto - g-codes
+#define SYS_DIR "0:/sys/" 						// Ditto - system files
+#define TEMP_DIR "0:/tmp/" 						// Ditto - temporary files
+#define FILE_LIST_SEPARATOR ','					// Put this between file names when listing them
+#define FILE_LIST_BRACKET '"'					// Put these round file names when listing them
+#define FILE_LIST_LENGTH (1000) 				// Maximum length of file list
+#define MAX_FILES (42)							// Maximum number of files displayed
 
-#define FLASH_LED 'F' // Type byte of a message that is to flash an LED; the next two bytes define 
-                      // the frequency and M/S ratio.
-#define DISPLAY_MESSAGE 'L'  // Type byte of a message that is to appear on a local display; the L is 
-                             // not displayed; \f and \n should be supported.
-#define HOST_MESSAGE 'H' // Type byte of a message that is to be sent to the host; the H is not sent.
+#define FLASH_LED 'F' 							// Type byte of a message that is to flash an LED; the next two bytes define
+                      	  	  	  	  	  	  	// the frequency and M/S ratio.
+#define DISPLAY_MESSAGE 'L'  					// Type byte of a message that is to appear on a local display; the L is
+                             	 	 	 	 	// not displayed; \f and \n should be supported.
+#define HOST_MESSAGE 'H' 						// Type byte of a message that is to be sent to the host; the H is not sent.
 
 /****************************************************************************************************/
 
 // Networking
 
-// Seconds to wait after serving a page
- 
-#define CLIENT_CLOSE_DELAY 0.002
+#define CLIENT_CLOSE_DELAY 0.002				// Seconds to wait after serving a page
 
-#define HTTP_STATE_SIZE 5
+#define HTTP_STATE_SIZE 5						// Size of ring buffer used for HTTP requests
 
-#define IP_ADDRESS {192, 168, 1, 10} // Need some sort of default...
+#define IP_ADDRESS {192, 168, 1, 10} 			// Need some sort of default...
 #define NET_MASK {255, 255, 255, 0}
 #define GATE_WAY {192, 168, 1, 1}
 
+// The size of the http output buffer is critical to getting fast load times in the browser.
+// If this value is less than the TCP MSS, then Chrome under Windows will delay ack messages by about 120ms,
+// which results in very slow page loading. Any value higher than that will cause the TCP packet to be split
+// into multiple transmissions, which avoids this behaviour. Using a value of twice the MSS is most efficient because
+// each TCP packet will be full.
+// Currently we set the MSS (in file network/lwipopts.h) to 1432 which matches the value used by most versions of Windows
+// and therefore avoids additional memory use and fragmentation.
+const unsigned int httpOutputBufferSize = 2 * 1432;
 
 /****************************************************************************************************/
 
 // Miscellaneous...
 
-//#define LED_PIN 13 // Indicator LED
-
-#define BAUD_RATE 115200 // Communication speed of the USB if needed.
+#define BAUD_RATE 115200 						// Communication speed of the USB if needed.
 
 const uint16_t lineBufsize = 256;				// use a power of 2 for good performance
 const uint16_t NumZProbeReadingsAveraged = 8;	// must be an even number, preferably a power of 2 for performance, and no greater than 64
@@ -202,9 +208,9 @@ const uint16_t NumZProbeReadingsAveraged = 8;	// must be an even number, prefera
 
 enum EndStopHit
 {
-  noStop = 0,		// no enstop hit
-  lowHit = 1,		// low switch hit, or Z-probe in use and above threshold
-  highHit = 2		// high stop hit
+  noStop = 0,									// no endstop hit
+  lowHit = 1,									// low switch hit, or Z-probe in use and above threshold
+  highHit = 2									// high stop hit
 };
 
 /***************************************************************************************************/
@@ -221,19 +227,6 @@ enum IOStatus
   clientConnected = 8
 };
 
-//// All IO is done by classes derived from this class.
-//
-//class InputOutput
-//{
-//public:
-//	void TakeInputFrom(InputOutput* altIp);
-//	void SendOutputTo(InputOutput* altOp);
-//
-//protected:
-//	InputOutput* alternateInput;
-//	InputOutput* alternateOutput;
-//};
-
 // This class handles the network - typically an ethernet.
 
 // Start with a ring buffer to hold input from the network
@@ -241,36 +234,38 @@ enum IOStatus
 
 class NetRing
 {
-public:
 	friend class Network;
 
 protected:
+
 	NetRing(NetRing* n);
-	NetRing* Next();
-	bool Set(char* d, int l, void* pb, void* pc, void* h);
-	char* Data();
-	int Length();
-	bool ReadFinished();
-	void SetReadFinished();
-	void* Pbuf();
-	void* Pcb();
-	void* Hs();
-	bool Active();
-	void Free();
-	void SetNext(NetRing* n);
-	void ReleasePbuf();
-	void ReleaseHs();
+	NetRing* Next();						// Next ring entry
+	bool Init(char* d, int l,				// Set up a ring entry
+			void* pb, void* pc, void* h);
+	char* Data();							// Pointer to the data
+	int Length();							// How much data
+	bool ReadFinished();					// Have we read the data?
+	void SetReadFinished();					// Set if we've read the data
+	void* Pbuf();							// Ethernet structure pointer that needs to be preserved
+	void* Pcb();							// Ethernet structure pointer that needs to be preserved
+	void* Hs();								// Ethernet structure pointer that needs to be preserved
+	bool Active();							// Is this ring entry live?
+	void Free();							// Is this ring entry in use?
+	void SetNext(NetRing* n);				// Set the next ring entry - only used at the start
+	void ReleasePbuf();						// Set the ethernet structure pointer null
+	void ReleaseHs();						// Set the ethernet structure pointer null
 
 private:
-	void Reset();
-	void* pbuf;
-	void* pcb;
-	void* hs;
-	char* data;
-	int length;
-	bool read;
-	bool active;
-	NetRing* next;
+
+	//void Reset();
+	void* pbuf;								// Ethernet structure pointer that needs to be preserved
+	void* pcb;								// Ethernet structure pointer that needs to be preserved
+	void* hs;								// Ethernet structure pointer that needs to be preserved
+	char* data;								// Pointer to the data
+	int length;								// How much data
+	bool read;								// Have we read the data?
+	bool active;							// Is this ring entry live?
+	NetRing* next;							// Next ring entry
 };
 
 // The main network class that drives the network.
@@ -279,18 +274,20 @@ class Network //: public InputOutput
 {
 public:
 
-	int8_t Status() const; // Returns OR of IOStatus
-	bool Read(char& b);
-	bool CanWrite() const;
-	void SetWriteEnable(bool enable);
-	void Write(char b);
-	void Write(char* s);
-	void Close();
-	void ReceiveInput(char* data, int length, void* pb, void* pc, void* h);
-	void InputBufferReleased(void* pb);
-	void ConnectionError(void* h);
-	bool Active() const;
-	bool LinkIsUp();
+	int8_t Status() const;					 // Returns OR of IOStatus
+	bool Read(char& b);						 // Called to read a byte from the network
+	bool CanWrite() const;					 // Can we send data?
+	void SetWriteEnable(bool enable);		 // Set the enabling of data writing
+	void SentPacketAcknowledged();			 // Called to tell us a packet has gone
+	void Write(char b);						 // Send a byte to the network
+	void Write(const char* s);				 // Send a string to the network
+	void Close();							 // Close the connection represented by this ring entry
+	void ReceiveInput(char* data, int length,// Called to give us some input
+			void* pb, void* pc, void* h);
+	void InputBufferReleased(void* pb);		 // Called to release the input buffer
+	void ConnectionError(void* h);			 // Called when a network error has occured
+	bool Active() const;					 // Is the network connection live?
+	bool LinkIsUp();						 // Is the network link up?
 
 friend class Platform;
 
@@ -305,7 +302,7 @@ private:
 	void Reset();
 	void CleanRing();
 	char* inputBuffer;
-	char outputBuffer[STRING_LENGTH];
+	char outputBuffer[httpOutputBufferSize];
 	int inputPointer;
 	int inputLength;
 	int outputPointer;
@@ -315,6 +312,8 @@ private:
 	NetRing* netRingGetPointer;
 	NetRing* netRingAddPointer;
 	bool active;
+	uint8_t sentPacketsOutstanding;		// count of TCP packets we have sent that have not been acknowledged
+	uint8_t windowedSendPackets;
 };
 
 // This class handles serial I/O - typically via USB
@@ -326,7 +325,7 @@ public:
 	int8_t Status() const; // Returns OR of IOStatus
 	int Read(char& b);
 	void Write(char b);
-	void Write(char* s);
+	void Write(const char* s);
 	void Write(float f);
 	void Write(long l);
 
@@ -350,9 +349,9 @@ class MassStorage
 {
 public:
 
-  char* FileList(char* directory, bool fromLine); // Returns a list of all the files in the named directory
-  char* CombineName(char* directory, char* fileName);
-  bool Delete(char* directory, char* fileName);
+  char* FileList(const char* directory, bool fromLine); // Returns a list of all the files in the named directory
+  char* CombineName(const char* directory, const char* fileName);
+  bool Delete(const char* directory, const char* fileName);
 
 friend class Platform;
 
@@ -378,7 +377,7 @@ public:
 	int8_t Status(); // Returns OR of IOStatus
 	bool Read(char& b);
 	void Write(char b);
-	void Write(char* s);
+	void Write(const char* s);
 	void Close();
 	void GoToEnd(); // Position the file at the end (so you can write on the end).
 	unsigned long Length(); // File size in bytes
@@ -389,7 +388,7 @@ protected:
 
 	FileStore(Platform* p);
 	void Init();
-        bool Open(char* directory, char* fileName, bool write);
+    bool Open(const char* directory, const char* fileName, bool write);
         
   bool inUse;
   byte buf[FILE_BUF_LEN];
@@ -428,7 +427,7 @@ class Platform
   
   void Exit(); // Shut down tidily.  Calling Init after calling this should reset to the beginning
   
-  Compatibility Emulating();
+  Compatibility Emulating() const;
 
   void SetEmulating(Compatibility c);
 
@@ -449,26 +448,26 @@ class Platform
   // Communications and data storage
   
   Network* GetNetwork();
-  Line* GetLine();
+  Line* GetLine() const;
   void SetIPAddress(byte ip[]);
-  byte* IPAddress();
+  const byte* IPAddress() const;
   void SetNetMask(byte nm[]);
-  byte* NetMask();
+  const byte* NetMask() const;
   void SetGateWay(byte gw[]);
-  byte* GateWay();
+  const byte* GateWay() const;
   
   friend class FileStore;
   
   MassStorage* GetMassStorage();
-  FileStore* GetFileStore(char* directory, char* fileName, bool write);
+  FileStore* GetFileStore(const char* directory, const char* fileName, bool write);
   void StartNetwork();
-  char* GetWebDir(); // Where the htm etc files are
-  char* GetGCodeDir(); // Where the gcodes are
-  char* GetSysDir();  // Where the system files are
-  char* GetTempDir(); // Where temporary files are
-  char* GetConfigFile(); // Where the configuration is stored (in the system dir).
+  const char* GetWebDir() const; // Where the htm etc files are
+  const char* GetGCodeDir() const; // Where the gcodes are
+  const char* GetSysDir() const;  // Where the system files are
+  const char* GetTempDir() const; // Where temporary files are
+  const char* GetConfigFile() const; // Where the configuration is stored (in the system dir).
   
-  void Message(char type, char* message);        // Send a message.  Messages may simply flash an LED, or, 
+  void Message(char type, const char* message);        // Send a message.  Messages may simply flash an LED, or,
                             // say, display the messages on an LCD. This may also transmit the messages to the host.
   void PushMessageIndent();
   void PopMessageIndent();
@@ -480,54 +479,52 @@ class Platform
   void Step(byte drive);
   void Disable(byte drive); // There is no drive enable; drives get enabled automatically the first time they are used.
   void SetMotorCurrent(byte drive, float current);
-  float DriveStepsPerUnit(int8_t drive);
+  float DriveStepsPerUnit(int8_t drive) const;
   void SetDriveStepsPerUnit(int8_t drive, float value);
-  float Acceleration(int8_t drive);
+  float Acceleration(int8_t drive) const;
   void SetAcceleration(int8_t drive, float value);
-  float MaxFeedrate(int8_t drive);
+  float MaxFeedrate(int8_t drive) const;
   void SetMaxFeedrate(int8_t drive, float value);
-  float InstantDv(int8_t drive);
-  float HomeFeedRate(int8_t axis);
+  float InstantDv(int8_t drive) const;
+  float HomeFeedRate(int8_t axis) const;
   void SetHomeFeedRate(int8_t axis, float value);
   EndStopHit Stopped(int8_t drive);
-  int8_t HomeDirection(int8_t drive);
-  float AxisLength(int8_t axis);
+  float AxisLength(int8_t axis) const;
   void SetAxisLength(int8_t axis, float value);
-  bool HighStopButNotLow(int8_t axis);
+  bool HighStopButNotLow(int8_t axis) const;
   
-  float ZProbeStopHeight();
+  float ZProbeStopHeight() const;
   void SetZProbeStopHeight(float z);
   int ZProbe() const;
   int ZProbeOnVal() const;
   void SetZProbe(int iZ);
   void SetZProbeType(int iZ);
   int GetZProbeType() const;
+  //Mixing support
+  void SetMixingDrives(int);
 
   // Heat and temperature
   
   float GetTemperature(int8_t heater); // Result is in degrees celsius
   void SetHeater(int8_t heater, const float& power); // power is a fraction in [0,1]
-  float PidKp(int8_t heater);
-  float PidKi(int8_t heater);
-  float PidKd(int8_t heater);
-  float FullPidBand(int8_t heater);
-  float PidMin(int8_t heater);
-  float PidMax(int8_t heater);
-  float DMix(int8_t heater);
-  bool UsePID(int8_t heater);
-  float HeatSampleTime();
+  float PidKp(int8_t heater) const;
+  float PidKi(int8_t heater) const;
+  float PidKd(int8_t heater) const;
+  float FullPidBand(int8_t heater) const;
+  float PidMin(int8_t heater) const;
+  float PidMax(int8_t heater) const;
+  float DMix(int8_t heater) const;
+  bool UsePID(int8_t heater) const;
+  float HeatSampleTime() const;
   void CoolingFan(float speed);
-  //void SetHeatOn(int8_t ho); //TEMPORARY - this will go away...
+  void SetPidValues(size_t heater, float pVal, float iVal, float dVal);
 
   friend class Move;
 
 //-------------------------------------------------------------------------------------------------------
   protected:
   
-  void ReturnFileStore(FileStore* f);
-  float* Acceleration();
-  float* MaxFeedrate();
-  float* InstantDv();
+  void ReturnFileStore(FileStore* f);  
   
   private:
   
@@ -541,7 +538,7 @@ class Platform
   Compatibility compatibility;
 
   void InitialiseInterrupts();
-  int GetRawZHeight();
+  int GetRawZHeight() const;
   
 // DRIVES
 
@@ -552,7 +549,7 @@ class Platform
   bool driveEnabled[DRIVES];
   int8_t lowStopPins[DRIVES];
   int8_t highStopPins[DRIVES];
-  int8_t homeDirection[DRIVES];
+//  int8_t homeDirection[DRIVES];
   float maxFeedrates[DRIVES];  
   float accelerations[DRIVES];
   float driveStepsPerUnit[DRIVES];
@@ -575,6 +572,8 @@ class Platform
   uint16_t zProbeReadings[NumZProbeReadingsAveraged];
   int zProbeADValue;
   float zProbeStopHeight;
+  int8_t numMixingDrives;
+
 
 // AXES
 
@@ -590,7 +589,7 @@ class Platform
   
 // HEATERS - Bed is assumed to be the first
 
-  int GetRawTemperature(byte heater);
+  int GetRawTemperature(byte heater) const;
 
   int8_t tempSensePins[HEATERS];
   int8_t heatOnPins[HEATERS];
@@ -657,7 +656,7 @@ inline void Platform::Exit()
   active = false;
 }
 
-inline Compatibility Platform::Emulating()
+inline Compatibility Platform::Emulating() const
 {
 	if(compatibility == reprapFirmware)
 		return me;
@@ -678,34 +677,34 @@ inline void Platform::SetEmulating(Compatibility c)
 
 // Where the htm etc files are
 
-inline char* Platform::GetWebDir()
+inline const char* Platform::GetWebDir() const
 {
   return webDir;
 }
 
 // Where the gcodes are
 
-inline char* Platform::GetGCodeDir()
+inline const char* Platform::GetGCodeDir() const
 {
   return gcodeDir;
 }
 
 // Where the system files are
 
-inline char* Platform::GetSysDir()
+inline const char* Platform::GetSysDir() const
 {
   return sysDir;
 }
 
 // Where the temporary files are
 
-inline char* Platform::GetTempDir()
+inline const char* Platform::GetTempDir() const
 {
   return tempDir;
 }
 
 
-inline char* Platform::GetConfigFile()
+inline const char* Platform::GetConfigFile() const
 {
   return configFile;
 }
@@ -716,7 +715,7 @@ inline char* Platform::GetConfigFile()
 
 // Drive the RepRap machine - Movement
 
-inline float Platform::DriveStepsPerUnit(int8_t drive)
+inline float Platform::DriveStepsPerUnit(int8_t drive) const
 {
   return driveStepsPerUnit[drive]; 
 }
@@ -726,7 +725,7 @@ inline void Platform::SetDriveStepsPerUnit(int8_t drive, float value)
   driveStepsPerUnit[drive] = value;
 }
 
-inline float Platform::Acceleration(int8_t drive)
+inline float Platform::Acceleration(int8_t drive) const
 {
 	return accelerations[drive];
 }
@@ -736,27 +735,12 @@ inline void Platform::SetAcceleration(int8_t drive, float value)
 	accelerations[drive] = value;
 }
 
-inline float Platform::InstantDv(int8_t drive)
+inline float Platform::InstantDv(int8_t drive) const
 {
   return instantDvs[drive]; 
 }
 
-inline float* Platform::Acceleration()
-{
-	return accelerations;
-}
-
-inline float* Platform::MaxFeedrate()
-{
-	return maxFeedrates;
-}
-
-inline float* Platform::InstantDv()
-{
-	return instantDvs;
-}
-
-inline bool Platform::HighStopButNotLow(int8_t axis)
+inline bool Platform::HighStopButNotLow(int8_t axis) const
 {
 	return (lowStopPins[axis] < 0)  && (highStopPins[axis] >= 0);
 }
@@ -826,7 +810,7 @@ inline void Platform::SetMotorCurrent(byte drive, float current)
 	}
 }
 
-inline float Platform::HomeFeedRate(int8_t axis)
+inline float Platform::HomeFeedRate(int8_t axis) const
 {
   return homeFeedrates[axis];
 }
@@ -836,7 +820,7 @@ inline void Platform::SetHomeFeedRate(int8_t axis, float value)
    homeFeedrates[axis] = value;
 }
 
-inline float Platform::AxisLength(int8_t axis)
+inline float Platform::AxisLength(int8_t axis) const
 {
   return axisLengths[axis];
 }
@@ -846,12 +830,12 @@ inline void Platform::SetAxisLength(int8_t axis, float value)
   axisLengths[axis] = value;
 }
 
-inline int8_t Platform::HomeDirection(int8_t drive)
-{
-  return homeDirection[drive];
-}
+//inline int8_t Platform::HomeDirection(int8_t drive)
+//{
+//  return homeDirection[drive];
+//}
 
-inline float Platform::MaxFeedrate(int8_t drive)
+inline float Platform::MaxFeedrate(int8_t drive) const
 {
   return maxFeedrates[drive];
 }
@@ -861,7 +845,7 @@ inline void Platform::SetMaxFeedrate(int8_t drive, float value)
 	maxFeedrates[drive] = value;
 }
 
-inline int Platform::GetRawZHeight()
+inline int Platform::GetRawZHeight() const
 {
   return (zProbeType != 0) ? analogRead(zProbePin) : 0;
 }
@@ -884,7 +868,7 @@ inline int Platform::ZProbeOnVal() const
 				: 0;
 }
 
-inline float Platform::ZProbeStopHeight()
+inline float Platform::ZProbeStopHeight() const
 {
 	return zProbeStopHeight;
 }
@@ -908,6 +892,11 @@ inline void Platform::SetZProbeType(int pt)
 inline int Platform::GetZProbeType() const
 {
 	return zProbeType;
+}
+
+inline void Platform::SetMixingDrives(int num_drives)
+{
+	numMixingDrives = num_drives;
 }
 
 inline void Platform::PollZHeight()
@@ -935,55 +924,55 @@ inline void Platform::PollZHeight()
 
 // Drive the RepRap machine - Heat and temperature
 
-inline int Platform::GetRawTemperature(byte heater)
+inline int Platform::GetRawTemperature(byte heater) const
 {
   if(tempSensePins[heater] >= 0)
     return analogRead(tempSensePins[heater]);
   return 0;
 }
 
-inline float Platform::HeatSampleTime()
+inline float Platform::HeatSampleTime() const
 {
   return heatSampleTime; 
 }
 
-inline bool Platform::UsePID(int8_t heater)
+inline bool Platform::UsePID(int8_t heater) const
 {
   return usePID[heater];
 }
 
 
-inline float Platform::PidKi(int8_t heater)
+inline float Platform::PidKi(int8_t heater) const
 {
   return pidKis[heater]*heatSampleTime;
 }
 
-inline float Platform::PidKd(int8_t heater)
+inline float Platform::PidKd(int8_t heater) const
 {
   return pidKds[heater]/heatSampleTime;
 }
 
-inline float Platform::PidKp(int8_t heater)
+inline float Platform::PidKp(int8_t heater) const
 {
   return pidKps[heater];
 }
 
-inline float Platform::FullPidBand(int8_t heater)
+inline float Platform::FullPidBand(int8_t heater) const
 {
   return fullPidBand[heater];
 }
 
-inline float Platform::PidMin(int8_t heater)
+inline float Platform::PidMin(int8_t heater) const
 {
   return pidMin[heater];  
 }
 
-inline float Platform::PidMax(int8_t heater)
+inline float Platform::PidMax(int8_t heater) const
 {
-  return pidMax[heater]/PidKi(heater);
+  return pidMax[heater];
 }
 
-inline float Platform::DMix(int8_t heater)
+inline float Platform::DMix(int8_t heater) const
 {
   return dMix[heater];  
 }
@@ -1038,7 +1027,7 @@ inline void Platform::SetIPAddress(byte ip[])
 		ipAddress[i] = ip[i];
 }
 
-inline byte* Platform::IPAddress()
+inline const byte* Platform::IPAddress() const
 {
 	return ipAddress;
 }
@@ -1049,7 +1038,7 @@ inline void Platform::SetNetMask(byte nm[])
 		netMask[i] = nm[i];
 }
 
-inline byte* Platform::NetMask()
+inline const byte* Platform::NetMask() const
 {
 	return netMask;
 }
@@ -1060,12 +1049,12 @@ inline void Platform::SetGateWay(byte gw[])
 		gateWay[i] = gw[i];
 }
 
-inline byte* Platform::GateWay()
+inline const byte* Platform::GateWay() const
 {
 	return gateWay;
 }
 
-inline Line* Platform::GetLine()
+inline Line* Platform::GetLine() const
 {
 	return line;
 }
@@ -1094,7 +1083,7 @@ inline void Line::Write(char b)
 	SerialUSB.print(b);
 }
 
-inline void Line::Write(char* b)
+inline void Line::Write(const char* b)
 {
 	SerialUSB.print(b);
 }

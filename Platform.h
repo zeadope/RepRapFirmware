@@ -110,7 +110,7 @@ Licence: GPL
 
 #define AXIS_LENGTHS {183, 199, 198.3} // mm
 #define HOME_FEEDRATES {50.0, 50.0, 3.0}  // mm/sec
-#define HEAD_OFFSETS {0.0, 0.0, 0.0}
+#define HEAD_OFFSETS {0.0, 0.0, 0.0}			// mm
 
 #define X_AXIS 0  // The index of the X axis
 #define Y_AXIS 1  // The index of the Y axis
@@ -502,6 +502,7 @@ class Platform
   int GetZProbeType() const;
   //Mixing support
   void SetMixingDrives(int);
+  int GetMixingDrives();
 
   // Heat and temperature
   
@@ -896,7 +897,17 @@ inline int Platform::GetZProbeType() const
 
 inline void Platform::SetMixingDrives(int num_drives)
 {
+	if(num_drives>(DRIVES-AXES))
+	{
+		Message(HOST_MESSAGE, "More mixing extruder drives set with M160 than exist in firmware configuration\n");
+		return;
+	}
 	numMixingDrives = num_drives;
+}
+
+inline int Platform::GetMixingDrives()
+{
+	return numMixingDrives;
 }
 
 inline void Platform::PollZHeight()

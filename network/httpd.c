@@ -202,7 +202,7 @@ http_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
   } else
   {
 	  // See if there is more to send
-	  RepRapNetworkAllowWriting();
+	  RepRapNetworkSentPacketAcknowledged();
   }
 
   return ERR_OK;

@@ -25,7 +25,7 @@ Licence: GPL
 #define STACK 5
 #define GCODE_LENGTH 100 // Maximum length of internally-generated G Code string
 
-#define GCODE_LETTERS { 'X', 'Y', 'Z', 'E', 'F' } // The drives and feedrate in a GCode
+#define GCODE_LETTERS { 'X', 'Y', 'Z', 'E', 'F' } // The drives and feedrate in a GCode //FIXME when working with multiple extruders GCODE_LETTERS[DRIVES] is out of scope
 #define FEEDRATE_LETTER 'F'//FIX to work with multiple extruders without having to re-define GCODE_LETTERS array
 
 // Small class to hold an individual GCode and provide functions to allow it to be parsed

@@ -205,7 +205,7 @@ void Move::Spin()
     if(movementType & xyMove)
       nextMove[DRIVES] = fmin(nextMove[DRIVES], platform->MaxFeedrate(X_AXIS));  // Assumes X and Y are equal.  FIXME?
     else if(movementType & eMove)
-      nextMove[DRIVES] = fmin(nextMove[DRIVES], platform->MaxFeedrate((AXES+gCodes->GetSelectedHead()))); // Picks up the value for the first extruder.  FIXME?
+      nextMove[DRIVES] = fmin(nextMove[DRIVES], platform->MaxFeedrate(AXES+gCodes->GetSelectedHead())); // Fixed
     else // Must be z
       nextMove[DRIVES] = fmin(nextMove[DRIVES], platform->MaxFeedrate(Z_AXIS));
     
@@ -367,7 +367,7 @@ void Move::SetStepHypotenuse()
 	  // We don't want 0.  If no axes/extruders are moving these should never be used.
 	  // But try to be safe.
 
-	  stepDistances[0] = 1.0/platform->DriveStepsPerUnit(AXES); //FIXME is this multi extruder safe?
+	  stepDistances[0] = 1.0/platform->DriveStepsPerUnit(AXES); //FIXME this is not multi extruder safe (but we should never get here)
 	  extruderStepDistances[0] = stepDistances[0];
 }
 
@@ -921,7 +921,7 @@ MovementProfile DDA::Init(LookAhead* lookAhead, float& u, float& v)
     {  // E
       delta[drive] = targetPosition[drive];  // Relative
       d = myLookAheadEntry->MachineToEndPoint(drive, delta[drive]);
-      eDistance += d*d;
+      eDistance += d*d; //FIXME is this the desired behaviour for multiple concurrent extruder movement?
     }
     
     if(delta[drive] >= 0)

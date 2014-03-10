@@ -341,21 +341,82 @@ void GCodes::LoadMoveBufferFromGCode(GCodeBuffer *gb, bool doingG92, bool applyL
 	      }
 	    } else
 	    {
-	      if(gb->Seen('E')&& ((i-AXES) == selectedHead)) //Only affect the selected extruder FIXME update to work with multiple concurrent extruders
+	      /*Fixed to work with multiple concurrent extruder drives:
+	       *  Default or M160 S1 (set use only one extruder drive)
+	       *  		"G1 En.n" adds the float n.n to the move buffer for the selected head
+	       *  There is no change in behaviour for one extruder drive setups, or multiple extruder
+	       *  setups where only one drive is used at any one time.
+	       *
+	       *  M160 Sn (set to use "n" extruder drives) eg
+	       *  		"M160 S3"
+	       *  		"G1 En.n:m.m:o.o" adds the floats to the move buffer in the following way:
+	       *  				moveBuffer[AXES+selectedHead) = n.n
+	       *  				moveBuffer[AXES+selectedHead+1) = m.m
+	       *  				moveBuffer[AXES+selectedHead+2) = o.o
+	       *  		so if selectedHead=0 move buffer ends up looking like this for a 5 extruder drive setup:
+	       *  		{x.x, y.y, z.z, n.n, m.m, o.o, 0.0,0.0, f.f}
+	       *  		where x,y,z are the axes and f is the feedrate.
+	       *  		If selected head > 0 then there is the possibility that more drives can be set than
+	       *  		exist, in that case the last values are discarded e.g:
+	       *  		"T3"
+	       *  		"M160 S3"
+	       *  		"G1 En.n:m.m:o.o"
+	       *  		would leave the move buffer on a 4 extruder drive setup looking like this:
+	       *  		{x.x, y.y, z.z, 0.0, 0.0, 0.0, n.n,m.m, f.f}
+	       */
+	      if(gb->Seen('E')&& ((i-AXES) == selectedHead))
 	      {
-		    float moveArg = gb->GetFValue()*distanceScale;
-	        if(drivesRelative || doingG92)
-	        {
-	        	moveBuffer[i] = moveArg; //Absolute
-	        	if(doingG92)
-	        		lastPos[i - AXES] = moveBuffer[i]; //FIXME Check this!!
-	        }
-	        else
-	        {
-	          float absE = moveArg;
-	          moveBuffer[i] = absE - lastPos[i - AXES];
-	          lastPos[i - AXES] = absE;
-	        }
+	    	//the number of mixing drives set (by M160)
+	    	int numDrives = platform->GetMixingDrives();
+	    	const char* extruderString = gb->GetString();
+	    	float eArg[numDrives];
+	    	uint8_t sp = 0; //string pointer
+	    	uint8_t fp = 0; //float pointer for the start of each floating point number in turn
+	    	uint8_t hp = 0; //index of the head currently referred to for eArg
+	    	while(extruderString[sp])
+	    	{
+	    		//first check to confirm we have not got to the feedrate setting part of the string
+	    		if(extruderString[sp] == 'F')
+	    		{
+	    			break;
+	    		}
+	    		if(extruderString[sp] == ':')
+	    		{
+	    			eArg[hp] = (atoff(&extruderString[fp]))*distanceScale;
+	    			hp++;
+	    			if(hp >= numDrives)
+	    			{
+						platform->Message(HOST_MESSAGE, "More mixing extruder drives required in G1 string than set with M160: ");
+						platform->Message(HOST_MESSAGE, gb->Buffer());
+						platform->Message(HOST_MESSAGE, "\n");
+						return;
+					}
+    				sp++;
+    				fp = sp;
+	    		}
+	    		else
+	    			sp++;
+	    	}
+	    	//capture the last drive step amount in the string (or the only one in the case of only one extruder)
+	    	eArg[hp] = (atoff(&extruderString[fp]))*distanceScale;
+
+	    	//set the move buffer for each extruder drive
+        	for(int j=0;j<numDrives;j++)
+        	{
+				if(drivesRelative || doingG92)
+				{
+
+						moveBuffer[i+j] = eArg[j]; //Absolute
+						if(doingG92)
+							lastPos[i+j - AXES] = moveBuffer[i+j];
+				}
+				else
+				{
+				  float absE = eArg[j];
+				  moveBuffer[i+j] = absE - lastPos[i+j - AXES];
+				  lastPos[i+j - AXES] = absE;
+				}
+        	}
 	      }
 	    }
 	}
@@ -1478,17 +1539,27 @@ bool GCodes::ActOnGcode(GCodeBuffer *gb)
 				seen = true;
 			}
 			//FIXME handle selectedHead=-1 case
+			//Just sets the currently selected head.
 			else if(gb->Seen('E')&& ((drive-AXES) == selectedHead))//then do active extruder
 			{
 					platform->SetDriveStepsPerUnit(AXES+selectedHead, gb->GetFValue());
 					seen=true;
 			}
-    	}	
+    	}
+
     	reprap.GetMove()->SetStepHypotenuse();
-    	if(!seen)
-    		snprintf(reply, STRING_LENGTH, "Steps/mm: X: %d, Y: %d, Z: %d, E: %d",
+    	if(!seen){
+    		snprintf(reply, STRING_LENGTH, "Steps/mm: X: %d, Y: %d, Z: %d, E: ",
     				(int)platform->DriveStepsPerUnit(X_AXIS), (int)platform->DriveStepsPerUnit(Y_AXIS),
-    				(int)platform->DriveStepsPerUnit(Z_AXIS), (int)platform->DriveStepsPerUnit(AXES+selectedHead)); // FIXME - needs to do multiple extruders and handle selectedHead=-1
+    				(int)platform->DriveStepsPerUnit(Z_AXIS));
+    		// Fixed to do multiple extruders.
+    		char * scratchString;
+        	for(int8_t drive = AXES; drive < DRIVES; drive++)
+        	{
+        		strncat(reply, ftoa(0,platform->DriveStepsPerUnit(drive),2), STRING_LENGTH);
+        		strncat(reply, ":", STRING_LENGTH);
+        	}
+    	}
         break;
 
 
@@ -1620,6 +1691,15 @@ bool GCodes::ActOnGcode(GCodeBuffer *gb)
       platform->Message(HOST_MESSAGE, "M141 - heated chamber not yet implemented\n");
       break;
 
+    case 160: //number of mixing filament drives
+    	if(gb->Seen('S'))
+		{
+			int iValue=gb->GetIValue();
+			platform->SetMixingDrives(iValue);
+		}
+		break;
+
+
     case 190: // // Deprecated...
     	if(gb->Seen('S'))
     	{
@@ -1637,10 +1717,13 @@ bool GCodes::ActOnGcode(GCodeBuffer *gb)
     		//Do AXES first
 			if(gb->Seen(gCodeLetters[drive])&& drive<AXES)
 			{
-	    		platform->SetAcceleration(drive, gb->GetFValue());
-			}
-			else if(gb->Seen('E')&& ((drive-AXES) == selectedHead))//then do active extruder
-					platform->SetAcceleration(AXES+selectedHead, gb->GetFValue()); //Set the E acceleration for the currently selected tool
+				platform->SetAcceleration(drive, gb->GetFValue());
+			//then do active extruder
+    		}else if(gb->Seen('E')&& ((drive-AXES) == selectedHead)){
+				platform->SetAcceleration(AXES+selectedHead, gb->GetFValue()); //Set the E acceleration for the currently selected tool
+			}else{
+    			platform->SetAcceleration(drive, -1);
+    		}					
     	}
     	break;
 

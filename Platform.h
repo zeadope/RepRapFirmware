@@ -128,7 +128,7 @@ Licence: GPL
 #define HEAT_ON_PINS {6, X5, X7, 7, 8, 9}  //pin D38 is PWM capable but not an Arduino PWM pin - //FIXME TEST if E1 PWM works as D38
 #define THERMISTOR_BETAS {4036, 3960.0, 3960.0, 3960.0, 3960.0, 3960.0} // Bed thermistor: B57861S104F40; Extruder thermistor: RS 198-961
 #define THERMISTOR_SERIES_RS {1000, 1000, 1000, 1000, 1000, 1000} // Ohms in series with the thermistors
-#define THERMISTOR_25_RS {100000.0, 10000.0, 10000.0, 10000.0, 10000.0, 100000.0} // Thermistor ohms at 25 C = 298.15 K
+#define THERMISTOR_25_RS {100000.0, 100000.0, 100000.0, 100000.0, 100000.0, 100000.0} // Thermistor ohms at 25 C = 298.15 K
 #define USE_PID {false, true, true, true, true, true} // PID or bang-bang for this heater?
 #define PID_KIS { 2.2, 0.027 / HEAT_SAMPLE_TIME, 0.027 / HEAT_SAMPLE_TIME, 0.027 / HEAT_SAMPLE_TIME, 0.027 / HEAT_SAMPLE_TIME, 0.027 / HEAT_SAMPLE_TIME} // Integral PID constants, adjusted by dc42 for Ormerod hot end
 #define PID_KDS {80, 100 * HEAT_SAMPLE_TIME, 100 * HEAT_SAMPLE_TIME, 100 * HEAT_SAMPLE_TIME, 100 * HEAT_SAMPLE_TIME, 100 * HEAT_SAMPLE_TIME}// Derivative PID constants

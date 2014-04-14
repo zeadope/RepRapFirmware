@@ -24,8 +24,8 @@ Licence: GPL
 #define CONFIGURATION_H
 
 #define NAME "RepRapFirmware"
-#define VERSION "0.60"
-#define DATE "2014-02-20"
+#define VERSION "0.64"
+#define DATE "2014-04-14"
 #define LAST_AUTHOR "tony@think3dprint3d.com"
 
 // Other firmware that we might switch to be compatible with.
@@ -48,13 +48,13 @@ enum Compatibility
 
 #define HEAT_SAMPLE_TIME (0.5) // Seconds
 
-#define TEMPERATURE_CLOSE_ENOUGH (5.0) 		// Celsius
+#define TEMPERATURE_CLOSE_ENOUGH (2.0) 		// Celsius
 #define TEMPERATURE_LOW_SO_DONT_CARE (40.0)	// Celsius
 
 // If temperatures fall outside this range, something
 // nasty has happened.
 
-#define BAD_LOW_TEMPERATURE -30.0
+#define BAD_LOW_TEMPERATURE -10.0
 #define BAD_HIGH_TEMPERATURE 300.0
 #define MAX_BAD_TEMPERATURE_COUNT 6
 

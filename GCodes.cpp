@@ -1063,6 +1063,8 @@ void GCodes::WriteGCodeToFile(GCodeBuffer *gb)
 
 void GCodes::QueueFileToPrint(const char* fileName)
 {
+  if(fileToPrint != NULL)
+    fileToPrint->Close();
   fileToPrint = platform->GetFileStore(platform->GetGCodeDir(), fileName, false);
   if(fileToPrint == NULL)
   {
@@ -1162,7 +1164,6 @@ bool GCodes::SetOffsets(GCodeBuffer *gb)
     if(gb->Seen('S'))
       reprap.GetHeat()->SetActiveTemperature(head, gb->GetFValue());
     // FIXME - do X, Y and Z
-	platform->Message(HOST_MESSAGE, "Not Yet fully implemented: Use head offset in slicing software");
   }
   return true;  
 }
@@ -1336,9 +1337,6 @@ void GCodes::HandleReply(bool error, bool fromLine, const char* reply, char gMOr
 bool GCodes::ActOnGcode(GCodeBuffer *gb)
 {
   int code;
-//  float value;
-//  int iValue;
-//  char* str;
   bool result = true;
   bool error = false;
   bool resend = false;
@@ -1545,8 +1543,7 @@ bool GCodes::ActOnGcode(GCodeBuffer *gb)
 					platform->SetDriveStepsPerUnit(AXES+selectedHead, gb->GetFValue());
 					seen=true;
 			}
-    	}
-
+    	}	
     	reprap.GetMove()->SetStepHypotenuse();
     	if(!seen){
     		snprintf(reply, STRING_LENGTH, "Steps/mm: X: %d, Y: %d, Z: %d, E: ",
@@ -1612,7 +1609,7 @@ bool GCodes::ActOnGcode(GCodeBuffer *gb)
     		reprap.SetDebug(gb->GetIValue());
     	break;
 
-    case 112: // Emergency stop - acted upon in Webserver
+    case 112: // Emergency stop - acted upon in Webserver, but also here in case it comes from USB etc.
     		reprap.EmergencyStop();
     	break;
 

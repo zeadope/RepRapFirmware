@@ -1,6 +1,6 @@
 /****************************************************************************************************
 
-RepRapFirmware - Platform: RepRapPro Mendel with Duet controller
+RepRapFirmware - Platform: Multi Extruder Think3dPrint3d Mendel90 with Duet controller
 
 Platform contains all the code and definitions to deal with machine-dependent things such as control
 pins, bed area, number of extruders, tolerable accelerations and speeds and so on.
@@ -126,6 +126,8 @@ Licence: GPL
 
 #define TEMP_SENSE_PINS {5, 4, 0, 7, 8, 9}   // Analogue pin numbers
 #define HEAT_ON_PINS {6, X5, X7, 7, 8, 9}  //pin D38 is PWM capable but not an Arduino PWM pin - //FIXME TEST if E1 PWM works as D38
+// Bed thermistor: http://uk.farnell.com/epcos/b57863s103f040/sensor-miniature-ntc-10k/dp/1299930?Ntt=129-9930
+// Hot end thermistor: http://www.digikey.co.uk/product-search/en?x=20&y=11&KeyWords=480-3137-ND
 #define THERMISTOR_BETAS {4036, 3960.0, 3960.0, 3960.0, 3960.0, 3960.0} // Bed thermistor: B57861S104F40; Extruder thermistor: RS 198-961
 #define THERMISTOR_SERIES_RS {1000, 1000, 1000, 1000, 1000, 1000} // Ohms in series with the thermistors
 #define THERMISTOR_25_RS {100000.0, 100000.0, 100000.0, 100000.0, 100000.0, 100000.0} // Thermistor ohms at 25 C = 298.15 K
@@ -143,7 +145,12 @@ Licence: GPL
 #define COOLING_FAN_PIN X6 										//pin D34 is PWM capable but not an Arduino PWM pin - use X6 instead
 #define HEAT_ON 0 												// 0 for inverted heater (eg Duet v0.6) 1 for not (e.g. Duet v0.4)
 
-#define AD_RANGE 1023.0											//16383 // The A->D converter that measures temperatures gives an int this big as its max value
+#define AD_RANGE 1023.0							//16383 // The A->D converter that measures temperatures gives an int this big as its max value
+
+#define NUMBER_OF_A_TO_D_READINGS_AVERAGED 8	// must be an even number, preferably a power of 2 for performance, and no greater than 64
+												// We hope that the compiler is clever enough to spot that division by this is a >> operation, but it doesn't really matter
+
+#define POLL_TIME 0.006                         // Poll the A to D converters this often (seconds)
 
 #define HOT_BED 0 	// The index of the heated bed; set to -1 if there is no heated bed
 #define E0_HEATER 1 //the index of the first extruder heater
@@ -158,7 +165,7 @@ Licence: GPL
 
 #define MAX_FILES 7								// Maximum number of simultaneously open files
 #define FILE_BUF_LEN 256						// File write buffer size
-#define SD_SPI 4 								// not used?
+#define SD_SPI 4 //Pin
 #define WEB_DIR "0:/www/" 						// Place to find web files on the SD card
 #define GCODE_DIR "0:/gcodes/" 					// Ditto - g-codes
 #define SYS_DIR "0:/sys/" 						// Ditto - system files
@@ -195,6 +202,7 @@ Licence: GPL
 // and therefore avoids additional memory use and fragmentation.
 const unsigned int httpOutputBufferSize = 2 * 1432;
 
+
 /****************************************************************************************************/
 
 // Miscellaneous...
@@ -202,7 +210,6 @@ const unsigned int httpOutputBufferSize = 2 * 1432;
 #define BAUD_RATE 115200 						// Communication speed of the USB if needed.
 
 const uint16_t lineBufsize = 256;				// use a power of 2 for good performance
-const uint16_t NumZProbeReadingsAveraged = 8;	// must be an even number, preferably a power of 2 for performance, and no greater than 64
 
 /****************************************************************************************************/
 
@@ -270,7 +277,7 @@ private:
 
 // The main network class that drives the network.
 
-class Network //: public InputOutput
+class Network
 {
 public:
 
@@ -562,19 +569,16 @@ class Platform
   int8_t potWipes[DRIVES];
   float senseResistor;
   float maxStepperDigipotVoltage;
-//  float zProbeGradient;
-//  float zProbeConstant;
   int8_t zProbePin;
   int8_t zProbeModulationPin;
   int8_t zProbeType;
-  uint8_t zProbeCount;
+  bool zModOnThisTime;
   long zProbeOnSum;		// sum of readings taken when IR led is on
   long zProbeOffSum;	// sum of readings taken when IR led is on
-  uint16_t zProbeReadings[NumZProbeReadingsAveraged];
   int zProbeADValue;
   float zProbeStopHeight;
+  bool zProbeEnable;
   int8_t numMixingDrives;
-
 
 // AXES
 
@@ -584,14 +588,13 @@ class Platform
   float axisLengths[AXES];
   float homeFeedrates[AXES];
   float headOffsets[AXES]; // FIXME - needs a 2D array
-//  bool zProbeStarting;
-//  float zProbeHigh;
-//  float zProbeLow;
   
 // HEATERS - Bed is assumed to be the first
 
   int GetRawTemperature(byte heater) const;
+  void PollTemperatures();
 
+  long tempSum[HEATERS];
   int8_t tempSensePins[HEATERS];
   int8_t heatOnPins[HEATERS];
   float thermistorBetas[HEATERS];
@@ -609,7 +612,6 @@ class Platform
   float standbyTemperatures[HEATERS];
   float activeTemperatures[HEATERS];
   int8_t coolingFanPin;
-  //int8_t turnHeatOn;
 
 // Serial/USB
 
@@ -743,7 +745,7 @@ inline float Platform::InstantDv(int8_t drive) const
 
 inline bool Platform::HighStopButNotLow(int8_t axis) const
 {
-	return (lowStopPins[axis] < 0)  && (highStopPins[axis] >= 0);
+	return (lowStopPins[axis] < 0) && (highStopPins[axis] >= 0);
 }
 
 inline void Platform::SetDirection(byte drive, bool direction)
@@ -851,21 +853,41 @@ inline int Platform::GetRawZHeight() const
   return (zProbeType != 0) ? analogRead(zProbePin) : 0;
 }
 
+inline void Platform::PollZHeight()
+{
+	uint16_t currentReading = GetRawZHeight();
+
+	// We do a moving average of the probe's A to D readings to smooth out noise
+
+	if (zModOnThisTime)
+		zProbeOnSum = zProbeOnSum + currentReading - zProbeOnSum/NUMBER_OF_A_TO_D_READINGS_AVERAGED;
+	else
+		zProbeOffSum = zProbeOffSum + currentReading - zProbeOffSum/NUMBER_OF_A_TO_D_READINGS_AVERAGED;
+
+	if (zProbeType == 2)
+	{
+		zModOnThisTime = !zModOnThisTime;
+		// Reverse the modulation, ready for next time
+		digitalWrite(zProbeModulationPin, zModOnThisTime ? HIGH : LOW);
+	} else
+		zModOnThisTime = true; // Defensive...
+}
+
 inline int Platform::ZProbe() const
 {
 	return (zProbeType == 1)
-			? (zProbeOnSum + zProbeOffSum)/NumZProbeReadingsAveraged		// non-modulated mode
+			? zProbeOnSum/NUMBER_OF_A_TO_D_READINGS_AVERAGED		// non-modulated mode
 			: (zProbeType == 2)
-			  ? (zProbeOnSum - zProbeOffSum)/(NumZProbeReadingsAveraged/2)	// modulated mode
+			  ? (zProbeOnSum - zProbeOffSum)/NUMBER_OF_A_TO_D_READINGS_AVERAGED	// modulated mode
 			    : 0;														// z-probe disabled
 }
 
 inline int Platform::ZProbeOnVal() const
 {
 	return (zProbeType == 1)
-			? (zProbeOnSum + zProbeOffSum)/NumZProbeReadingsAveraged
+			? zProbeOnSum/NUMBER_OF_A_TO_D_READINGS_AVERAGED
 			: (zProbeType == 2)
-			  ? zProbeOnSum/(NumZProbeReadingsAveraged/2)
+			  ? zProbeOnSum/NUMBER_OF_A_TO_D_READINGS_AVERAGED
 				: 0;
 }
 
@@ -910,27 +932,6 @@ inline int Platform::GetMixingDrives()
 	return numMixingDrives;
 }
 
-inline void Platform::PollZHeight()
-{
-	uint16_t currentReading = GetRawZHeight();
-	if (zProbeType == 2)
-	{
-		// Reverse the modulation, ready for next time
-		digitalWrite(zProbeModulationPin, (zProbeCount & 1) ? HIGH : LOW);
-	}
-	if (zProbeCount & 1)
-	{
-		zProbeOffSum = zProbeOffSum - zProbeReadings[zProbeCount] + currentReading;
-	}
-	else
-	{
-		zProbeOnSum = zProbeOnSum - zProbeReadings[zProbeCount] + currentReading;
-	}
-	zProbeReadings[zProbeCount] = currentReading;
-	zProbeCount = (zProbeCount + 1) % NumZProbeReadingsAveraged;
-}
-
-
 //********************************************************************************************************
 
 // Drive the RepRap machine - Heat and temperature
@@ -940,6 +941,14 @@ inline int Platform::GetRawTemperature(byte heater) const
   if(tempSensePins[heater] >= 0)
     return analogRead(tempSensePins[heater]);
   return 0;
+}
+
+inline void Platform::PollTemperatures()
+{
+	// We do a moving average of each thermometer's A to D readings to smooth out noise
+
+	for(int8_t heater = 0; heater < HEATERS; heater++)
+		tempSum[heater] = tempSum[heater] + GetRawTemperature(heater) - tempSum[heater]/NUMBER_OF_A_TO_D_READINGS_AVERAGED;
 }
 
 inline float Platform::HeatSampleTime() const

@@ -1,5 +1,4 @@
-
-This firmware is intended to be a fully object-oriented highly modular control program for 
+This firmware is intended to be a fully object-oriented highly modular control program for
 RepRap self-replicating 3D printers.
 
 It owes a lot to Marlin and to the original RepRap FiveD_GCode.

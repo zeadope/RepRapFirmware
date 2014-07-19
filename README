@@ -1,69 +1,191 @@
-This firmware is intended to be a fully object-oriented highly modular control p
-rogram for RepRap self-replicating 3D printers.
+This firmware is intended to be a fully object-oriented highly modular control program for
+RepRap self-replicating 3D printers.
 
 It owes a lot to Marlin and to the original RepRap FiveD_GCode.
 
+This is the version for the RepRap Duet: 
+
+  http://blog.think3dprint3d.com/2013/12/Duet-Arduino-Due-compatible-3DPrinter-controller.html  
+
+To edit and compile this you will also need the libraries in this repository:
+
+  https://github.com/jmgiacalone/Arduino-libraries
+
+A complete uploadable executable version is in the directory Release/RepRapFirmware.bin in this
+repository.  For details of how to flash it to a Duet see here:
+
+  http://www.reprappro.com/documentation/RepRapPro_Firmware#Flashing_the_Firmware
+
+For details of how to compile the source code, see below.
+
+
 General design principles:
 
-  * Control by RepRap G Codes.  These are taken to be machine independent, 
-     though some may be unsupported.
+  * Control by RepRap G Codes.  These are taken to be machine independent, though some may be unsupported.
   * Full use of C++ OO techniques,
   * Make classes hide their data,
-  * Make everything as stateless as possible,
-  * No use of conditional compilation except for #include guards - if you 
-      need that, you should be forking the repository to make a new 
-      branch - let the repository take the strain,
-  * Concentration of all machine-dependent defintions and code in Platform.h 
-      and Platform.cpp,
+  * Make everything except the Platform class (see below) as stateless as possible,
+  * No use of conditional compilation except for #include guards - if you need that, you should be
+       forking the repository to make a new branch - let the repository take the strain,
+  * Concentration of all machine-dependent defintions and code in Platform.h and Platform.cpp,
   * No specials for (X,Y) or (Z) - all movement is 3-dimensional,
+  * Except in Platform.h, use real units (mm, seconds etc) throughout the rest of the code wherever possible,
   * Try to be efficient in memory use, but this is not critical,
   * Labour hard to be efficient in time use, and this is  critical,
   * Don't abhor floats - they work fast enough if you're clever,
   * Don't avoid arrays and structs/classes,
   * Don't avoid pointers,
-  * Use operator and function overloading where appropriate, particulary for 
-      vector algebra.
+  * Use operator and function overloading where appropriate.
 
---------------------------------------------------------------------------------
 
-This version is for the Arduino Due with an Ethernet shield with an SD card and
-the RepRapPro Ltd Arduino DUE to Sanguinololu Adaptor.
+Naming conventions:
 
-(See https://github.com/reprappro/ARMadaptor)
+  * #defines are all CAPITALS_WITH_OPTIONAL_UNDERSCORES_BETWEEN_WORDS
+  * No underscores in other names - MakeReadableWithCapitalisation
+  * Class names and functions start with a CapitalLetter
+  * Variables start with a lowerCaseLetter
+  * Use veryLongDescriptiveNames
 
-Test compiling was with Arduino 1.5.2.
 
-Upload it to your Due, put the ether shield on it, plug in a
-network cable, and copy the files in the SD-image folder onto the SD.
+Structure:
 
-The IP address for your browser is 192.168.1.14.
+There are six main classes:
 
-You can change that in Platform.h if you need to:
+  * RepRap
+  * GCodes
+  * Heat
+  * Move
+  * Platform, and
+  * Webserver
 
-#define IP0 192
-#define IP1 168
-#define IP2 1
-#define IP3 14
+RepRap:
 
-The password when the web browser asks for it is "reprap" with no quotes.
+This is just a container class for the single instances of all the others, and otherwise does very little.
 
-The password is intended to stop fidgety friends or colleagues from playing
-with your RepRap.  It is not intended to stop international cyberterrorists
-working in a hollowed-out volcano from controlling your RepRap from the next 
-continent.  For example, it is transmitted unencrypted...
+GCodes:
 
-If you open the Arduino serial monitor (115200 baud) you should see a
-log of incoming HTTP requests and a record of any G Codes it thinks it
-has to act upon.
+This class is fed GCodes, either from the web interface, or from GCode files, or from a serial interface,
+Interprets them, and requests actions from the RepRap machine via the other classes.
 
-Actually acting upon them will be added shortly :-)
+Heat:
+
+This class implements all heating and temperature control in the RepRap machine.
+
+Move:
+
+This class controls all movement of the RepRap machine, both along its axes, and in its extruder drives.
+
+Platform:
+
+This is the only class that knows anything about the physical setup of the RepRap machine and its
+controlling electronics.  It implements the interface between all the other classes and the RepRap machine.
+All the other classes are completely machine-independent (though they may declare arrays dimensioned
+to values #defined in Platform.h).
+
+Webserver:
+
+This class talks to the network (via Platform) and implements a simple webserver to give an interactive
+interface to the RepRap machine.  It uses the Knockout and Jquery Javascript libraries to achieve this.
+
+
+
+When the software is running there is one single instance of each main class, and all the memory allocation is
+done on initialization.  new/malloc should not be used in the general running code, and delete is never
+used.  Each class has an Init() function that resets it to its boot-up state; the constructors merely handle
+that memory allocation on startup.  Calling RepRap.Init() calls all the other Init()s in the right sequence.
+
+There are other ancillary classes that are declared in the .h files for the master classes that use them.  For
+example, Move has a DDA class that implements a Bresenham/digital differential analyser.
+
+
+Timing:
+
+There is a single interrupt chain entered via Platform.Interrupt().  This controls movement step timing, and
+this chain of code should be the only place that volatile declarations and structure/variable-locking are
+required.  All the rest of the code is called sequentially and repeatedly as follows:
+
+All the main classes have a Spin() function.  These are called in a loop by the RepRap.Spin() function and implement
+simple timesharing.  No class does, or ever should, wait inside one of its functions for anything to happen or call
+any sort of delay() function.  The general rule is:
+
+  Can I do a thing?
+    Yes - do it
+    No - set a flag/timer to remind me to do it next-time-I'm-called/at-a-future-time and return.
+
+The restriction this strategy places on almost all the code in the firmware (that it must execute quickly and
+never cause waits or delays) is balanced by the fact that none of that code needs to worry about synchronization,
+locking, or other areas of code accessing items upon which it is working.  As mentioned, only the interrupt
+chain needs to concern itself with such problems.  Unlike movement, heating (including PID controllers) does
+not need the fast precision of timing that interrupts alone can offer.  Indeed, most heating code only needs
+to execute a couple of times a second.
+
+Most data is transferred bytewise, with classes' Spin() functions typically containing code like this:
+
+  Is a byte available for me?
+    Yes
+      read it and add it to my buffer
+      Is my buffer complete?
+         Yes
+           Act on the contents of my buffer
+         No
+           Return
+  No
+    Return
+
+Note that it is simple to raise the "priority" of any class's activities relative to the others by calling its
+Spin() function more than once from RepRap.Spin().
 
 -------------
 
-Version 0.2 pre-alpha
+Compiling from Source
 
-Started: 18 November 2012
-This date: 1 March 2013
+
+RepRap Frimware was developed using the Eclipse IDE, which is much more powerful for big software projects than the Arduino IDE.
+
+We use Eclipse Juno, which is available here:
+
+   http://www.eclipse.org/downloads/packages/eclipse-ide-cc-developers/junosr1
+
+You will also need the Eclipse Arduino support:
+
+   http://www.baeyens.it/eclipse/Install.html
+
+And the Arduino IDE itself (make sure you get the one for the Due/Duet - version 1.5.5 at the time of writing):
+
+   http://arduino.cc/en/Main/Software
+
+Finally you will need our libraries for driving the periphearls:
+
+   https://github.com/jmgiacalone/Arduino-libraries
+
+Start by getting the Arduino IDE programming your Duet with a simple Hello World program that prints to the USB (SerialUSB.print("Hello World"); on the Due/Duet, not Serial.print("Hello World");... )
+
+Then install Eclipse and the Arduino plugin.
+
+Make temporary copise of RepRapFirmware.cpp and RepRapFirmware.h from your download in another folder (you will only need to do this once).
+
+Finally use Eclipse to open the Arduino project called RepRapFirmware in the folder where you have downloaded the RepRap Firmware code.  Tell Eclipse to use the Arduino-libraries files you downloaded as the local libraries.  Eclipse will complain that the project already exists (which it does - it is your download).  Ignore this and it will open the project anyway.  
+
+Annoyingly the first time it may also overwrite RepRapFirmware.cpp and RepRapFirmware.h.  So close the project, overwrite its overwrites with the two files you saved, open the project again and refresh it.  Everything should now be ship-shape.  Add the libraries 
+
+  Wire
+  EMAC
+  Lwip
+  MCP4461
+  SamNonDuePin
+  SD_HSMCI
+
+to your project.  Under no circumstances be tempted to add standard Arduino libraries for devices like Ethernet - these are for the Due, and will not work on the Duet.
+
+You should now be able to compile the code and upload the result to the Duet.
+
+
+-------------
+
+Version 0.mn beta
+
+Started: 2012-11-18
+This README dated: 2013-12-30
 
 Adrian Bowyer
 RepRap Professional Ltd

@@ -55,35 +55,38 @@ void Platform::Init()
   {     
   // DRIVES
   
-    stepPins = STEP_PINS;
-    directionPins = DIRECTION_PINS;
-    enablePins = ENABLE_PINS;
-    disableDrives = DISABLE_DRIVES;
-    maxFeedrates = MAX_FEEDRATES;
-    maxAccelerations = MAX_ACCELERATIONS;
-    driveStepsPerUnit = DRIVE_STEPS_PER_UNIT;
-    jerks = JERKS;
-    driveRelativeModes = DRIVE_RELATIVE_MODES;
+    char stepPins[DRIVES] = STEP_PINS;
+    char directionPins[DRIVES] = DIRECTION_PINS;
+    char enablePins[DRIVES] = ENABLE_PINS;
+    boolean disableDrives[DRIVES] = DISABLE_DRIVES;
+    float maxFeedrates[DRIVES] = MAX_FEEDRATES;
+    float maxAccelerations[DRIVES] = MAX_ACCELERATIONS;
+    float driveStepsPerUnit[DRIVES] = DRIVE_STEPS_PER_UNIT;
+    float jerks[DRIVES] = JERKS;
+    boolean driveRelativeModes[DRIVES] = DRIVE_RELATIVE_MODES;
     
   // AXES
   
-    lowStopPins = LOW_STOP_PINS;
-    highStopPins = HIGH_STOP_PINS;
-    axisLengths = AXIS_LENGTHS;
-    fastHomeFeedrates = FAST_HOME_FEEDRATES;
+    char lowStopPins[AXES] = LOW_STOP_PINS;
+    char highStopPins[AXES] = HIGH_STOP_PINS;
+    float axisLengths[AXES] = AXIS_LENGTHS;
+    float fastHomeFeedrates[AXES] = AXIS_LENGTHS;
    
   // HEATERS - Bed is assumed to be the first
   
-    tempSensePins = TEMP_SENSE_PINS;
-    heatOnPins = HEAT_ON_PINS;
-    thermistorBetas = THERMISTOR_BETAS;
-    thermistorSeriesRs = THERMISTOR_SERIES_RS;
-    thermistorInfRs = THERMISTOR_25_RS;
-    usePid = USE_PID;
-    pidKis = PID_KIS;
-    pidKds = PID_KDS;
-    pidKps = PID_KPS;
-    pidILimits = PID_I_LIMITS;
+    char tempSensePins[HEATERS] = TEMP_SENSE_PINS;
+    char heatOnPins[HEATERS] = HEAT_ON_PINS;
+    float thermistorBetas[HEATERS] = THERMISTOR_BETAS;
+    float thermistorSeriesRs[HEATERS] = THERMISTOR_SERIES_RS;
+    float thermistorInfRs[HEATERS] = THERMISTOR_25_RS;
+    boolean usePid[HEATERS] = USE_PID;
+    float pidKis[HEATERS] = PID_KIS;
+    float pidKds[HEATERS] = PID_KDS;
+    float pidKps[HEATERS] = PID_KPS;
+    float pidILimits[HEATERS] = PID_I_LIMITS;
+    
+    // Files
+
     webDir = WEB_DIR;
     gcodeDir = GCODE_DIR;
     sysDir = SYS_DIR;
